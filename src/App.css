@@ -1,0 +1,362 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  background: #f8fafc;
+}
+
+/* Toolbar */
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 10px 16px;
+  background: #0f172a;
+  color: #e2e8f0;
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+.toolbar__brand {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.toolbar__breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.toolbar__breadcrumb button {
+  background: none;
+  border: none;
+  color: #93c5fd;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 4px 6px;
+}
+
+.toolbar__breadcrumb button:disabled {
+  color: #64748b;
+  cursor: default;
+}
+
+.toolbar__export {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.toolbar__export button {
+  background: #1e293b;
+  color: #e2e8f0;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.toolbar__export button:hover:not(:disabled) {
+  background: #334155;
+}
+
+.toolbar__export button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* Search */
+
+.search-box {
+  position: relative;
+  flex: 1;
+  max-width: 420px;
+}
+
+.search-box input {
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: 6px;
+  border: 1px solid #334155;
+  background: #1e293b;
+  color: #e2e8f0;
+  font-size: 13px;
+}
+
+.search-box input::placeholder {
+  color: #64748b;
+}
+
+.search-box__results {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  z-index: 20;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.search-box__results button {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 8px 10px;
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.search-box__results button:hover {
+  background: #f1f5f9;
+}
+
+.search-box__results button strong {
+  font-size: 13px;
+  color: #0f172a;
+}
+
+.search-box__results button span {
+  font-size: 11px;
+  color: #64748b;
+  font-family: ui-monospace, Consolas, monospace;
+}
+
+/* Body layout */
+
+.app__body {
+  position: relative;
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.graph-view {
+  flex: 1;
+  min-width: 0;
+}
+
+/* React Flow node */
+
+.map-node {
+  background: #fff;
+  border: 2px solid #94a3b8;
+  border-radius: 10px;
+  padding: 10px 12px;
+  width: 220px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+}
+
+.map-node__tag {
+  display: inline-block;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-bottom: 6px;
+}
+
+.map-node__label {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #0f172a;
+  line-height: 1.3;
+}
+
+.map-node__meta {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  font-size: 10.5px;
+  color: #64748b;
+}
+
+.map-node__review {
+  color: #b45309;
+  font-weight: 600;
+}
+
+/* Detail panel */
+
+.detail-panel {
+  width: 380px;
+  flex-shrink: 0;
+  background: #fff;
+  border-left: 1px solid #e2e8f0;
+  padding: 20px;
+  overflow-y: auto;
+  position: relative;
+}
+
+.detail-panel__close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: none;
+  border: none;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  color: #64748b;
+}
+
+.detail-panel__tag {
+  display: inline-block;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 3px 8px;
+  border-radius: 4px;
+  margin-bottom: 10px;
+}
+
+.detail-panel h2 {
+  margin: 0 0 8px;
+  font-size: 19px;
+  color: #0f172a;
+  padding-right: 24px;
+}
+
+.detail-panel__review-note {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+  font-size: 12px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  margin: 0 0 12px;
+}
+
+.detail-panel__summary {
+  font-size: 14px;
+  color: #1e293b;
+  margin-bottom: 10px;
+}
+
+.detail-panel__description {
+  font-size: 13px;
+  color: #475569;
+  margin-bottom: 14px;
+}
+
+.detail-panel__github-link {
+  display: inline-block;
+  font-size: 13px;
+  color: #2563eb;
+  text-decoration: none;
+  margin-bottom: 10px;
+}
+
+.detail-panel__github-link:hover {
+  text-decoration: underline;
+}
+
+.detail-panel__section {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.detail-panel__section h3 {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+  margin: 0 0 8px;
+}
+
+.detail-panel__children {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.detail-panel__children button {
+  width: 100%;
+  text-align: left;
+  padding: 6px 8px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  border-radius: 6px;
+  font-size: 12.5px;
+  cursor: pointer;
+  color: #1e293b;
+}
+
+.detail-panel__children button:hover {
+  background: #eef2ff;
+}
+
+.detail-panel__expand-button {
+  width: 100%;
+  padding: 8px;
+  border: none;
+  border-radius: 6px;
+  background: #1e293b;
+  color: #fff;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+/* Code preview */
+
+.code-preview {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.code-preview__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  background: #f1f5f9;
+  font-size: 11px;
+}
+
+.code-preview__file {
+  font-family: ui-monospace, Consolas, monospace;
+  color: #475569;
+}
+
+.code-preview__header a {
+  color: #2563eb;
+  text-decoration: none;
+}
+
+.code-preview--loading,
+.code-preview--error {
+  padding: 12px;
+  font-size: 12.5px;
+  color: #64748b;
+}
+
+.code-preview--error a {
+  color: #2563eb;
+}
