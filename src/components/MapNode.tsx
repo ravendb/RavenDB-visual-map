@@ -1,5 +1,5 @@
 import { Handle, Position, type NodeProps } from '@xyflow/react'
-import { CATEGORY_COLORS, CATEGORY_LABELS } from '../lib/categoryColors'
+import NodeCard from './NodeCard'
 import type { NodeCategory } from '../data/architecture'
 
 export interface MapNodeData {
@@ -7,31 +7,39 @@ export interface MapNodeData {
   category: NodeCategory
   hasChildren: boolean
   needsReview?: boolean
+  flowState?: 'current' | 'visited'
   [key: string]: unknown
 }
 
+// One handle per side, each doubling as a source and a target, so an edge
+// can leave/enter from whichever side actually points at the other node
+// (see pickHandles in GraphView) instead of always top-to-bottom.
+const SIDES = [
+  { id: 'top', position: Position.Top },
+  { id: 'bottom', position: Position.Bottom },
+  { id: 'left', position: Position.Left },
+  { id: 'right', position: Position.Right },
+]
+
 export default function MapNode({ data, selected }: NodeProps) {
-  const { label, category, hasChildren, needsReview } = data as MapNodeData
-  const color = CATEGORY_COLORS[category]
+  const { label, category, hasChildren, needsReview, flowState } = data as MapNodeData
 
   return (
-    <div
-      className="map-node"
-      style={{
-        borderColor: color,
-        boxShadow: selected ? `0 0 0 2px ${color}` : undefined,
-      }}
-    >
-      <Handle type="target" position={Position.Top} style={{ opacity: 0 }} />
-      <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} />
-      <div className="map-node__tag" style={{ background: color }}>
-        {CATEGORY_LABELS[category]}
-      </div>
-      <div className="map-node__label">{label}</div>
-      <div className="map-node__meta">
-        {hasChildren && <span className="map-node__expand">expand ↴</span>}
-        {needsReview && <span className="map-node__review" title="First pass - not yet reviewed by a subsystem expert">needs review</span>}
-      </div>
-    </div>
+    <>
+      {SIDES.map((side) => (
+        <Handle key={`t-${side.id}`} type="target" id={side.id} position={side.position} style={{ opacity: 0 }} />
+      ))}
+      {SIDES.map((side) => (
+        <Handle key={`s-${side.id}`} type="source" id={side.id} position={side.position} style={{ opacity: 0 }} />
+      ))}
+      <NodeCard
+        label={label}
+        category={category}
+        hasChildren={hasChildren}
+        needsReview={needsReview}
+        selected={selected}
+        flowState={flowState}
+      />
+    </>
   )
 }

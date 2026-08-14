@@ -5,6 +5,14 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>RavenDB Architecture Map</title>
+    <script>
+      // Applied before first paint so a returning light-mode user doesn't see
+      // a flash of the (default) dark theme. Dark needs no attribute - it's
+      // the :root default in App.css.
+      if (localStorage.getItem('ravendb-map-theme') === 'light') {
+        document.documentElement.dataset.theme = 'light'
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

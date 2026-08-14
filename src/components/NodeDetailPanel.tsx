@@ -1,15 +1,17 @@
 import { getChildren, getNode, githubBlobUrl, githubTreeUrl } from '../data/architecture'
 import { CATEGORY_COLORS, CATEGORY_LABELS } from '../lib/categoryColors'
+import type { Theme } from '../lib/theme'
 import CodePreview from './CodePreview'
 
 interface NodeDetailPanelProps {
   nodeId: string
+  theme: Theme
   onClose: () => void
   onDrillInto: (id: string) => void
   onSelectNode: (id: string) => void
 }
 
-export default function NodeDetailPanel({ nodeId, onClose, onDrillInto, onSelectNode }: NodeDetailPanelProps) {
+export default function NodeDetailPanel({ nodeId, theme, onClose, onDrillInto, onSelectNode }: NodeDetailPanelProps) {
   const node = getNode(nodeId)
   if (!node) return null
 
@@ -43,7 +45,7 @@ export default function NodeDetailPanel({ nodeId, onClose, onDrillInto, onSelect
       {node.codeRef && (
         <div className="detail-panel__section">
           <h3>Code preview</h3>
-          <CodePreview codeRef={node.codeRef} />
+          <CodePreview codeRef={node.codeRef} theme={theme} />
         </div>
       )}
 

@@ -3,18 +3,22 @@
 // reads far better than a generic force/grid layout, and needs no extra
 // dependency (dagre/elk) for this size of graph.
 
+// X spacing is wide enough that no two cards' bounding boxes come close to
+// overlapping (each is 220px wide) - otherwise an unrelated node can end up
+// sitting directly in the way of an orthogonal edge that merely passes near
+// its column on the way to some other target.
 export const MACRO_POSITIONS: Record<string, { x: number; y: number }> = {
-  client: { x: 40, y: 0 },
-  studio: { x: 440, y: 0 },
-  security: { x: 240, y: 110 },
-  http: { x: 240, y: 220 },
-  'documents-core': { x: 240, y: 360 },
-  attachments: { x: 560, y: 360 },
-  indexing: { x: 20, y: 520 },
-  storage: { x: 260, y: 560 },
-  cluster: { x: 520, y: 520 },
-  integrations: { x: 780, y: 360 },
-  infra: { x: 260, y: 700 },
+  client: { x: 64, y: 0 },
+  studio: { x: 704, y: 0 },
+  security: { x: 384, y: 130 },
+  http: { x: 384, y: 260 },
+  'documents-core': { x: 384, y: 430 },
+  attachments: { x: 896, y: 430 },
+  indexing: { x: 32, y: 620 },
+  storage: { x: 416, y: 660 },
+  cluster: { x: 832, y: 620 },
+  integrations: { x: 1248, y: 430 },
+  infra: { x: 416, y: 850 },
 }
 
 const MICRO_COLUMNS = 3

@@ -1,6 +1,10 @@
 :root {
-  color-scheme: light;
+  color-scheme: dark;
   font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
 }
 
 * {
@@ -16,4 +20,9 @@ body,
 
 body {
   overflow: hidden;
+  background: #0f1425;
+}
+
+:root[data-theme='light'] body {
+  background: #f9f9f9;
 }

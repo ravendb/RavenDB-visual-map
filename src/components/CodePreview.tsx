@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { fetchFileContent, languageForPath } from '../lib/github'
 import { githubBlobUrl, type CodeRef } from '../data/architecture'
+import type { Theme } from '../lib/theme'
 
 const CONTEXT_LINES = 6
 
 interface CodePreviewProps {
   codeRef: CodeRef
+  theme: Theme
 }
 
 type LoadState =
@@ -15,7 +17,7 @@ type LoadState =
   | { status: 'error'; message: string }
   | { status: 'ready'; snippet: string; startingLineNumber: number; highlightLines: number[] }
 
-export default function CodePreview({ codeRef }: CodePreviewProps) {
+export default function CodePreview({ codeRef, theme }: CodePreviewProps) {
   const [state, setState] = useState<LoadState>({ status: 'loading' })
 
   useEffect(() => {
@@ -70,7 +72,7 @@ export default function CodePreview({ codeRef }: CodePreviewProps) {
       </div>
       <SyntaxHighlighter
         language={languageForPath(codeRef.file)}
-        style={oneLight}
+        style={theme === 'dark' ? oneDark : oneLight}
         showLineNumbers
         startingLineNumber={state.startingLineNumber}
         wrapLongLines

@@ -66,7 +66,6 @@ export const nodes: MapNode[] = [
     description:
       'Raven.Client is what application code links against. It builds HTTP requests for the server API, tracks entities in a session (unit of work), and mirrors the wire protocol implemented by the eight other official SDKs.',
     githubPath: 'src/Raven.Client',
-    needsReview: true,
   },
   {
     id: 'http',
@@ -74,9 +73,8 @@ export const nodes: MapNode[] = [
     category: 'server',
     summary: 'The web server front door: request routing, authentication, and the handlers that turn HTTP calls into database operations.',
     description:
-      'Every client request (and every Studio request) lands here first. Routing dispatches to a Handler per resource type (documents, attachments, indexes, ...), after Https/authentication middleware has run.',
+      'Every client request (and every Studio request) lands here first. The actual dispatcher (RequestRouter, RouteScanner) lives in the sibling src/Raven.Server/Routing folder; Web itself holds the per-resource-type Handlers it dispatches to (documents, attachments, indexes, ...) plus the Authentication middleware that runs before routing.',
     githubPath: 'src/Raven.Server/Web',
-    needsReview: true,
   },
   {
     id: 'documents-core',
@@ -134,9 +132,8 @@ export const nodes: MapNode[] = [
     category: 'integration',
     summary: 'Ongoing tasks that move data in and out of RavenDB: ETL to other databases, SQL migration, PostgreSQL protocol support, import/export.',
     description:
-      "The main edge/integration extension points: ETL processes stream document changes out to relational databases or other RavenDB instances, Smuggler handles bulk import/export, SqlMigration pulls data in from existing SQL databases, and the PostgreSQL integration lets Postgres-wire clients query RavenDB directly.",
-    githubPath: 'src/Raven.Server/Documents/ETL',
-    needsReview: true,
+      "The main edge/integration extension points, each in its own top-level folder rather than under one shared parent: ETL (Documents/ETL) processes stream document changes out to relational databases or other RavenDB instances, Smuggler (Smuggler, plus a sharding-aware companion under Documents/Smuggler) handles bulk import/export, SqlMigration (SqlMigration) pulls data in from existing SQL databases, and the PostgreSQL integration (Integrations/PostgreSQL) lets Postgres-wire clients query RavenDB directly.",
+    githubPath: 'src/Raven.Server',
   },
   {
     id: 'security',
@@ -146,7 +143,6 @@ export const nodes: MapNode[] = [
     description:
       'RavenDB authenticates connections using X.509 client certificates rather than username/password, enforced at the HTTPS layer before a request reaches routing.',
     githubPath: 'src/Raven.Server/Https',
-    needsReview: true,
   },
   {
     id: 'studio',
@@ -155,7 +151,6 @@ export const nodes: MapNode[] = [
     summary: "RavenDB's built-in web management interface, bundled with the server.",
     description: 'A single-page app served by the server itself, talking to the same HTTP API as any other client - used for administration, querying, and monitoring.',
     githubPath: 'src/Raven.Studio',
-    needsReview: true,
   },
   {
     id: 'infra',
@@ -165,7 +160,6 @@ export const nodes: MapNode[] = [
     description:
       'Sparrow (and Sparrow.Server) is not a feature area but the foundation the rest of the server is built on - things like unmanaged memory pooling and low-level JSON parsing live here because Voron and Raven.Server both depend on them.',
     githubPath: 'src/Sparrow',
-    needsReview: true,
   },
 
   // ---------------------------------------------------------------------
@@ -233,7 +227,6 @@ export const nodes: MapNode[] = [
     summary: 'Fetches/sends an attachment from another cluster node on demand, instead of eager replication of binary content.',
     githubPath: 'src/Raven.Server/Documents/RemoteAttachmentsStorage.cs',
     parentId: 'attachments',
-    needsReview: true,
   },
   {
     id: 'attachments-handler',
