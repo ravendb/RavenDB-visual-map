@@ -570,6 +570,27 @@
   text-decoration: underline;
 }
 
+.detail-panel__docs-link {
+  display: block;
+  font-size: 13px;
+  color: var(--color-link);
+  text-decoration: none;
+  margin-bottom: 10px;
+}
+
+.detail-panel__docs-link:hover {
+  text-decoration: underline;
+}
+
+/* Fallback shown while the lazily-loaded 3D view is being fetched. */
+.view-loading {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
 .detail-panel__section {
   margin-top: 18px;
   padding-top: 14px;

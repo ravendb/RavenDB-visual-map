@@ -1,7 +1,11 @@
+import { Suspense, lazy } from 'react'
 import { getChildren, getNode, githubBlobUrl, githubTreeUrl } from '../data/architecture'
 import { CATEGORY_COLORS, CATEGORY_LABELS } from '../lib/categoryColors'
 import type { Theme } from '../lib/theme'
-import CodePreview from './CodePreview'
+
+// The syntax highlighter is by far the heaviest dependency here and is only
+// needed once a node with a codeRef is actually opened.
+const CodePreview = lazy(() => import('./CodePreview'))
 
 interface NodeDetailPanelProps {
   nodeId: string
@@ -16,7 +20,9 @@ export default function NodeDetailPanel({ nodeId, theme, onClose, onDrillInto, o
   if (!node) return null
 
   const children = getChildren(node.id)
-  const isFile = node.githubPath.includes('.')
+  // Not `includes('.')`: almost every folder path here contains a dot
+  // ("src/Raven.Server/Documents"), which built a /blob/ URL for a directory.
+  const isFile = /\.[a-z0-9]{1,5}$/i.test(node.githubPath)
   const githubUrl = isFile ? githubBlobUrl(node.githubPath) : githubTreeUrl(node.githubPath)
 
   return (
@@ -42,10 +48,18 @@ export default function NodeDetailPanel({ nodeId, theme, onClose, onDrillInto, o
         View {node.githubPath} on GitHub ↗
       </a>
 
+      {node.docsUrl && (
+        <a className="detail-panel__docs-link" href={node.docsUrl} target="_blank" rel="noreferrer">
+          Read the documentation for this area ↗
+        </a>
+      )}
+
       {node.codeRef && (
         <div className="detail-panel__section">
           <h3>Code preview</h3>
-          <CodePreview codeRef={node.codeRef} theme={theme} />
+          <Suspense fallback={<div className="code-preview code-preview--loading">Loading preview…</div>}>
+            <CodePreview codeRef={node.codeRef} theme={theme} />
+          </Suspense>
         </div>
       )}
 

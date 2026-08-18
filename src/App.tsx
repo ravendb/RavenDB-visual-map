@@ -1,7 +1,7 @@
-import { useRef, useState } from 'react'
+import { Suspense, lazy, useRef, useState } from 'react'
 import { ReactFlowProvider } from '@xyflow/react'
 import GraphView from './components/GraphView'
-import GraphView3D, { type GraphView3DHandle } from './components/GraphView3D'
+import type { GraphView3DHandle } from './components/GraphView3D'
 import NodeDetailPanel from './components/NodeDetailPanel'
 import Toolbar from './components/Toolbar'
 import FlowBanner from './components/FlowBanner'
@@ -9,6 +9,10 @@ import { getNode } from './data/architecture'
 import { useTheme } from './lib/theme'
 import { useFlowPlayback } from './lib/useFlowPlayback'
 import './App.css'
+
+// The 3D scene is a whole second renderer and most visitors never leave 2D, so
+// it is only fetched once the 3D toggle is actually used.
+const GraphView3D = lazy(() => import('./components/GraphView3D'))
 
 export type ViewMode = '2d' | '3d'
 
@@ -93,18 +97,20 @@ export default function App() {
             />
           </ReactFlowProvider>
         ) : (
-          <GraphView3D
-            ref={graph3DRef}
-            currentParentId={currentParentId}
-            selectedNodeId={selectedNodeId}
-            highlightedNodeId={highlightedNodeId}
-            theme={theme}
-            flowCurrentNodeId={flow.currentNodeId}
-            flowVisitedNodeIds={flow.visitedNodeIds}
-            flowVisitedEdgeIds={flow.visitedEdgeIds}
-            onSelectNode={handleSelectNode}
-            onDrillInto={handleDrillInto}
-          />
+          <Suspense fallback={<div className="view-loading">Loading 3D view…</div>}>
+            <GraphView3D
+              ref={graph3DRef}
+              currentParentId={currentParentId}
+              selectedNodeId={selectedNodeId}
+              highlightedNodeId={highlightedNodeId}
+              theme={theme}
+              flowCurrentNodeId={flow.currentNodeId}
+              flowVisitedNodeIds={flow.visitedNodeIds}
+              flowVisitedEdgeIds={flow.visitedEdgeIds}
+              onSelectNode={handleSelectNode}
+              onDrillInto={handleDrillInto}
+            />
+          </Suspense>
         )}
         {flow.activeFlowId && (
           <FlowBanner
