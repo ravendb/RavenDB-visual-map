@@ -43,12 +43,15 @@ Everything about the map's content lives in one file: [`src/data/architecture.ts
 - node ids are unique, `parentId` resolves, edges connect existing macro nodes, every macro node has exactly one layout position and no two share a position;
 - every pair of consecutive flow steps is connected by a real edge.
 
-It runs in CI on every push and pull request, plus weekly on a schedule ([`.github/workflows/validate-content.yml`](.github/workflows/validate-content.yml)) - the scheduled run is the one that catches upstream moving without anyone touching this repo. It needs one GitHub API request in total (it fetches the whole tree at once), and `GITHUB_TOKEN` only to raise the rate limit. Behind a rate-limited IP you can validate fully offline against a local clone:
+It runs in CI on every push and pull request, plus weekly on a schedule ([`.github/workflows/validate-content.yml`](.github/workflows/validate-content.yml)) - the scheduled run is the one that catches upstream moving without anyone touching this repo.
+
+By default it reads the repo over HTTPS: one `api.github.com` request for the whole file tree, then `raw.githubusercontent.com` for the files it needs. `GITHUB_TOKEN` only raises the rate limit. If that call fails for any reason - a spent rate limit, or a corporate proxy that lets `git` through but blocks Node's `fetch` - the script falls back to `git`, cloning a blobless copy of the branch into `node_modules/.cache/ravendb-clone` once and reading it from there. Nothing to configure; a failure to *reach* GitHub never fails the validation.
+
+To point it at a clone you already have:
 
 ```bash
-git clone --filter=blob:none --no-checkout --depth 1 -b v7.2 \
-  https://github.com/ravendb/ravendb.git /tmp/ravendb
-RAVENDB_REPO_DIR=/tmp/ravendb npm run validate:content
+RAVENDB_REPO_DIR=/path/to/ravendb npm run validate:content   # any checkout, uses HEAD
+RAVENDB_REPO_DIR=/path/to/ravendb RAVENDB_REPO_REF=v7.2 npm run validate:content
 ```
 
 ### Content-accuracy caveat
