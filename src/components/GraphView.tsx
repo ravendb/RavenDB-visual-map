@@ -33,10 +33,10 @@ const FLOW_ACCENT = '#1cc8ee'
 // with the CSS grid in App.css (.map-node__children / .map-node__child) so the
 // box we tell React Flow about matches what actually renders, with no
 // measurement race. Cards are wide/tall enough to carry a one-line label plus
-// a short two-line summary, not just a bare name.
+// a three-line summary, not just a bare name.
 const CHILD_COLS = 2
-const CHILD_CARD_WIDTH = 230
-const CHILD_CARD_HEIGHT = 84
+const CHILD_CARD_WIDTH = 250
+const CHILD_CARD_HEIGHT = 100
 const CHILD_GAP = 10
 const EXPANDED_PADDING = 14
 const EXPANDED_HEADER_HEIGHT = 96

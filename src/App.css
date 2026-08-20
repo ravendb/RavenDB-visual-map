@@ -365,10 +365,10 @@
 
 .map-node__children {
   display: grid;
-  grid-template-columns: repeat(2, 230px);
+  grid-template-columns: repeat(2, 250px);
   /* Without this, a grid row grows to fit its item's min-content (the
      unclamped summary text) regardless of the item's own fixed height. */
-  grid-auto-rows: 84px;
+  grid-auto-rows: 100px;
   gap: 10px;
   margin-top: 10px;
 }
@@ -377,7 +377,7 @@
   display: flex;
   flex-direction: column;
   gap: 3px;
-  height: 84px;
+  height: 100px;
   min-height: 0;
   padding: 7px 9px;
   border: 1.5px solid #94a3b8;
@@ -433,15 +433,15 @@
   min-width: 0;
   min-height: 0;
   /* Belt-and-suspenders: line-clamp truncates with an ellipsis where
-     supported, but the explicit max-height (2 lines at this line-height)
+     supported, but the explicit max-height (3 lines at this line-height)
      guarantees the text never pushes the card taller even if it doesn't. */
-  max-height: 2.6em;
+  max-height: 3.9em;
   font-size: 10px;
   line-height: 1.3;
   color: var(--color-text-muted);
   display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
