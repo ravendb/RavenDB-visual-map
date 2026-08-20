@@ -78,8 +78,9 @@ export const nodes: MapNode[] = [
     category: 'client',
     summary: 'The .NET client library applications use to talk to RavenDB: sessions, queries, bulk inserts, subscriptions.',
     description:
-      'Raven.Client is what .NET application code links against. It builds HTTP requests for the server API and tracks entities in a session (unit of work). RavenDB ships official clients for seven languages in total - .NET, Java, Node.js, Python, PHP, Ruby and Go - and they all speak the same wire protocol this one implements.',
+      'Raven.Client is what .NET application code links against. It builds HTTP requests for the server API and tracks entities in a session (unit of work). RavenDB also ships official clients for other languages - including Java, Node.js, Python, PHP, Ruby and Go - all speaking the same wire protocol this one implements; none of that lives in this repository, so the exact list needs a subsystem expert to confirm rather than this repo\'s source.',
     githubPath: 'src/Raven.Client',
+    needsReview: true,
     docsUrl: 'https://docs.ravendb.net/7.2/client-api/what-is-a-document-store',
   },
   {
@@ -128,7 +129,7 @@ export const nodes: MapNode[] = [
     category: 'server',
     summary: 'Binary blobs attached to documents, stored as streams alongside the owning document, plus cross-node "remote attachment" fetch.',
     description:
-      'AttachmentsStorage keeps attachments in their own Voron table, separately from document JSON, so large binaries do not bloat document reads. An attachment record references its content by hash (AttachmentHashSize = 44), so identical content stored on several documents is kept once. RemoteAttachmentsStorage/RemoteAttachmentsSender and RemoteAttachmentHandler implement fetching an attachment from another node on demand, instead of replicating every attachment eagerly everywhere.',
+      'AttachmentsStorage keeps attachments in their own Voron table, separately from document JSON, so large binaries do not bloat document reads. An attachment record references its content by hash (AttachmentHashSize = 44), so identical content stored on several documents is kept once. RemoteAttachmentsStorage/RemoteAttachmentsSender and RemoteAttachmentHandler implement cold-storage tiering: an attachment\'s stream can be moved out to external storage (e.g. S3/Azure, typically as part of a backup) and deleted locally, then fetched back on demand by its external identifier instead of staying resident forever.',
     githubPath: 'src/Raven.Server/Documents/AttachmentsStorage.cs',
     codeRef: {
       file: 'src/Raven.Server/Documents/AttachmentsStorage.cs',
@@ -175,7 +176,7 @@ export const nodes: MapNode[] = [
     category: 'integration',
     summary: 'Embeddings generation, vector fields in indexes, and the chat/assistant integrations with external AI providers.',
     description:
-      'EmbeddingsGenerator is a background task that turns document text into vectors through an external provider, chunking it first with TextChunker; ChatCompletionClient and AiAssistant cover the conversational integrations. The vectors themselves are indexed as vector fields (Documents/Indexes/VectorSearch) and queried like any other index field.',
+      'EmbeddingsGenerator is a background task that turns document text into vectors through an external provider, chunking it first with TextChunker. ChatCompletionClient is the client for the user\'s own configured AI provider; AiAssistant is a separate, license-gated proxy to RavenDB\'s own cloud-hosted assistant at api.ravendb.net and does not use ChatCompletionClient or the user\'s provider config. The vectors themselves are indexed as vector fields (Documents/Indexes/VectorSearch) and queried like any other index field.',
     githubPath: 'src/Raven.Server/Documents/AI',
     codeRef: {
       file: 'src/Raven.Server/Documents/AI/Embeddings/EmbeddingsGenerator.cs',
@@ -254,7 +255,7 @@ export const nodes: MapNode[] = [
     category: 'integration',
     summary: 'Moving data in and out of RavenDB: ETL to other systems, queue sinks, bulk import/export, SQL migration, PostgreSQL wire protocol.',
     description:
-      'EtlLoader runs the outgoing ETL processes (Providers covers RavenDB, SQL, OLAP, Elasticsearch and queue destinations such as Kafka and RabbitMQ), while QueueSink is the inbound direction: consuming messages from a queue into documents. Alongside them sit Smuggler (bulk import/export, plus a sharding-aware companion), SqlMigration (pulling data in from an existing SQL database) and Integrations/PostgreSQL (letting Postgres-wire clients query RavenDB).',
+      'EtlLoader runs the outgoing ETL processes (Providers covers RavenDB, SQL, OLAP, Elasticsearch, AI embeddings generation, and queue destinations such as Kafka and RabbitMQ), while QueueSink is the inbound direction: consuming messages from a queue into documents. Alongside them sit Smuggler (bulk import/export, plus sharding-aware companions), SqlMigration (pulling data in from an existing SQL database) and Integrations/PostgreSQL (letting Postgres-wire clients query RavenDB).',
     githubPath: 'src/Raven.Server/Documents/ETL',
     codeRef: {
       file: 'src/Raven.Server/Documents/ETL/EtlLoader.cs',
@@ -322,7 +323,7 @@ export const nodes: MapNode[] = [
     label: 'Revisions',
     category: 'server',
     summary:
-      'Versioning: keeps previous versions of a document according to the revisions configuration. RevisionsStorage keeps a plain and a compressed Voron table side by side, and enforces a configurable size limit (32MB by default, 2MB on 32-bit builds) through RevisionsOperations.',
+      'Versioning: keeps previous versions of a document according to the revisions configuration. RevisionsStorage keeps a plain and a compressed Voron table side by side, and rejects any single revision larger than SizeLimitInBytes (32MB by default, 2MB on 32-bit builds, not currently configurable).',
     githubPath: 'src/Raven.Server/Documents/Revisions',
     codeRef: {
       file: 'src/Raven.Server/Documents/Revisions/RevisionsStorage.cs',
@@ -352,7 +353,7 @@ export const nodes: MapNode[] = [
     label: 'Time Series',
     category: 'server',
     summary:
-      'Append-only numeric series attached to a document, stored in compressed segments. Each segment is capped at 2048 bytes (MaxSegmentSize) before a new one starts, and TimeSeriesRollups downsamples older data according to configured retention policies.',
+      'Append-only numeric series attached to a document, stored in compressed segments. Each segment is capped at 2048 bytes (MaxSegmentSize) before a new one starts; TimeSeriesRollups only marks a rollup as needing recomputation, while the separate TimeSeriesPolicyRunner background worker is what actually downsamples and purges data per the configured retention policy.',
     githubPath: 'src/Raven.Server/Documents/TimeSeries',
     codeRef: {
       file: 'src/Raven.Server/Documents/TimeSeries/TimeSeriesStorage.cs',
@@ -367,7 +368,7 @@ export const nodes: MapNode[] = [
     label: 'Data Subscriptions',
     category: 'server',
     summary:
-      'Server-side, resumable push of matching documents to a worker over a long-lived TCP connection. SubscriptionStorage caps how many workers can connect to the same subscription concurrently (MaxNumberOfConcurrentConnections) and raises events as connections open, end, or a batch completes.',
+      'Server-side, resumable push of matching documents to a worker over a long-lived TCP connection. MaxNumberOfConcurrentConnections is a single database-wide cap (default 1000) shared across every subscription, not a per-subscription limit; SubscriptionStorage raises events as connections open, end, or a batch completes.',
     githubPath: 'src/Raven.Server/Documents/Subscriptions',
     codeRef: {
       file: 'src/Raven.Server/Documents/Subscriptions/SubscriptionStorage.cs',
@@ -457,7 +458,7 @@ export const nodes: MapNode[] = [
     label: 'Schema',
     category: 'storage',
     summary:
-      'Schema versioning and upgrade transactions for a Voron environment. It walks the version history one step at a time, loading a Voron.Schema.Updates.From{version} type by reflection for each hop until the stored file reaches the current schema version.',
+      'Schema versioning and upgrade transactions for a Voron environment. VoronSchemaUpdater walks the version history one step at a time until the stored file reaches the current schema version; the per-version upgrade classes it loads by reflection live in Raven.Server (Raven.Server.Storage.Schema.Updates.<scope>.<toVersion>.From<fromVersion>), not inside Voron itself.',
     githubPath: 'src/Voron/Schema',
     codeRef: {
       file: 'src/Voron/Schema/VoronSchemaUpdater.cs',
@@ -509,7 +510,7 @@ export const nodes: MapNode[] = [
     label: 'RemoteAttachmentsStorage / Sender',
     category: 'server',
     summary:
-      'Fetches/sends an attachment from another cluster node on demand, instead of eager replication of binary content. It derives from the same AbstractBackgroundWorkStorage used for document expiration, and walks each document\'s metadata to find attachments still flagged as remote rather than fetched.',
+      'Fetches an attachment stream back from external cold storage (e.g. S3/Azure, after it was tiered out during a backup) on demand, instead of keeping every attachment resident locally forever. It derives from the same AbstractBackgroundWorkStorage used for document expiration, and walks each document\'s metadata to find attachments still flagged as remote rather than fetched.',
     githubPath: 'src/Raven.Server/Documents/RemoteAttachmentsStorage.cs',
     codeRef: {
       file: 'src/Raven.Server/Documents/RemoteAttachmentsStorage.cs',
@@ -571,7 +572,7 @@ export const nodes: MapNode[] = [
     label: 'ShardedDatabaseContext',
     category: 'server',
     summary:
-      'The per-sharded-database orchestrator: owns the shard executors, topology and sharded subsystems. It owns the ShardExecutor and AllOrchestratorNodesExecutor instances every other sharded component fans requests out through, plus the query metadata cache shared across shards.',
+      'The per-sharded-database orchestrator: owns the shard executors, topology and sharded subsystems. It owns the ShardExecutor and AllOrchestratorNodesExecutor instances every other sharded component fans requests out through.',
     githubPath: 'src/Raven.Server/Documents/Sharding/ShardedDatabaseContext.cs',
     codeRef: {
       file: 'src/Raven.Server/Documents/Sharding/ShardedDatabaseContext.cs',
@@ -677,7 +678,7 @@ export const nodes: MapNode[] = [
     label: 'Static indexes',
     category: 'indexing',
     summary:
-      'User-defined index definitions, compiled from their map/reduce functions. IndexCompiler turns those functions into a generated .NET assembly at runtime, under a generated Static.Generated namespace, so the same definition isn\'t recompiled on every server restart.',
+      'User-defined index definitions, compiled from their map/reduce functions. IndexCompiler turns those functions into a generated .NET assembly at runtime, under a generated Static.Generated namespace; the in-memory assembly doesn\'t survive a restart, but the IndexCompilationCache still avoids recompiling the same definition twice within one running process.',
     githubPath: 'src/Raven.Server/Documents/Indexes/Static',
     codeRef: {
       file: 'src/Raven.Server/Documents/Indexes/Static/IndexCompiler.cs',
@@ -691,7 +692,7 @@ export const nodes: MapNode[] = [
     label: 'Map-Reduce',
     category: 'indexing',
     summary:
-      'Aggregation indexes: the reduce tree and how partial aggregations are persisted and updated. MapReduceIndexBase keeps two Voron trees - one for the map phase, one for the reduce phase - and flags the map tree to allow fixed-size sub-trees the first time it\'s used.',
+      'Aggregation indexes: the reduce tree and how partial aggregations are persisted and updated. MapReduceIndexBase keeps three named Voron trees - map phase, reduce phase, and result-store types - and flags the map tree to allow fixed-size sub-trees the first time it\'s used.',
     githubPath: 'src/Raven.Server/Documents/Indexes/MapReduce',
     codeRef: {
       file: 'src/Raven.Server/Documents/Indexes/MapReduce/MapReduceIndexBase.cs',
@@ -735,7 +736,7 @@ export const nodes: MapNode[] = [
     label: 'VectorSearch',
     category: 'indexing',
     summary:
-      'Vector fields: turning text/embeddings into indexable vectors for similarity search. GenerateEmbeddings lazily constructs a BERT ONNX embedding model the first time it\'s needed, producing fixed-size 1536-float vectors (F32Size).',
+      'Vector fields: turning text/embeddings into indexable vectors for similarity search. GenerateEmbeddings lazily constructs a BERT ONNX embedding model the first time it\'s needed - the bundled bge-micro-v2 model - and buffers its 384-dimensional output in a 1536-byte block (F32Size, 4 bytes per float).',
     githubPath: 'src/Raven.Server/Documents/Indexes/VectorSearch',
     codeRef: {
       file: 'src/Raven.Server/Documents/Indexes/VectorSearch/GenerateEmbeddings.cs',
@@ -870,7 +871,7 @@ export const nodes: MapNode[] = [
     label: 'Follower',
     category: 'cluster',
     summary:
-      'The steady-state role: accepts AppendEntries from the current leader. Follower runs on its own long-running thread per elected term, and exposes a RachisLogRecorder purely for the in-memory debug view of what it\'s currently doing.',
+      'The steady-state role: accepts AppendEntries from the current leader on its own thread, replying with a success or rejection for each one.',
     githubPath: 'src/Raven.Server/Rachis/Follower.cs',
     codeRef: {
       file: 'src/Raven.Server/Rachis/Follower.cs',
@@ -898,7 +899,7 @@ export const nodes: MapNode[] = [
     label: 'RachisConsensus / StateMachine',
     category: 'cluster',
     summary:
-      'The core consensus engine and the abstraction that applies committed log entries to cluster state. RachisConsensus fires TopologyChanged, StateChanged and LeaderElected events as the node moves between Follower, Candidate and Leader roles.',
+      'The core consensus engine and the abstraction that applies committed log entries to cluster state. RachisConsensus tracks the node\'s current role (Follower, Candidate, Leader) via a RachisState value and drives the transitions between them as elections happen and terms change.',
     githubPath: 'src/Raven.Server/Rachis/RachisConsensus.cs',
     codeRef: {
       file: 'src/Raven.Server/Rachis/RachisConsensus.cs',
@@ -988,7 +989,7 @@ export const nodes: MapNode[] = [
     label: 'Change vectors',
     category: 'cluster',
     summary:
-      'The per-node etag vector that decides newer / older / conflict for every replicated item. It recognizes four kinds of entries by tag - RAFT, TRXN, SINK and MOVE - each parsed with its own base-26 node-tag decoder before the numeric etag that follows it.',
+      'The per-node etag vector that decides newer / older / conflict for every replicated item. Most entries carry a node tag encoded in base-26 (A-Z, then AA, AB, ...); four special tags - RAFT, TRXN, SINK and MOVE - are recognized as literal string constants instead, ahead of the numeric etag that follows.',
     githubPath: 'src/Raven.Server/Documents/Replication/ChangeVectorParser.cs',
     codeRef: {
       file: 'src/Raven.Server/Documents/Replication/ChangeVectorParser.cs',
@@ -1003,7 +1004,7 @@ export const nodes: MapNode[] = [
     label: 'ConflictManager',
     category: 'cluster',
     summary:
-      'Applies the configured conflict resolution when two nodes changed the same document concurrently. ConflictManager special-cases HiLo documents before falling back to the configured ResolveConflictOnReplicationConfigurationChange resolver for everything else.',
+      'Applies the configured conflict resolution when two nodes changed the same document concurrently. ConflictManager runs a fixed sequence of gates - HiLo special-case, identical-content merge, same-collection check, a scripted JavaScript resolver, then latest-wins (via ResolveConflictOnReplicationConfigurationChange) - falling back to a manual conflict only if none of them resolve it.',
     githubPath: 'src/Raven.Server/Documents/Replication/ConflictManager.cs',
     codeRef: {
       file: 'src/Raven.Server/Documents/Replication/ConflictManager.cs',
@@ -1113,7 +1114,7 @@ export const nodes: MapNode[] = [
     label: 'ChatCompletionClient',
     category: 'integration',
     summary:
-      'The client for chat/completion calls to an external AI provider, including SSE streaming. It freezes one shared DocumentConventions instance for every provider call, and is created through a factory that picks the right settings implementation for the connection string\'s provider.',
+      'The client for chat/completion calls to an external AI provider, including SSE streaming. It goes through a pooled HttpClient rather than opening a fresh connection per call, and is created through a factory that picks the right settings implementation - OpenAI, Azure OpenAI, Google, Ollama - for the connection string\'s provider.',
     githubPath: 'src/Raven.Server/Documents/AI/ChatCompletionClient.cs',
     codeRef: {
       file: 'src/Raven.Server/Documents/AI/ChatCompletionClient.cs',
@@ -1128,7 +1129,7 @@ export const nodes: MapNode[] = [
     label: 'AiAssistant',
     category: 'integration',
     summary:
-      'The assistant endpoints layered on top of the chat client. AiAssistantHandler exposes separate endpoints for consent, usage and the actual assist call - the consent split lets the UI gate the feature before the first real request goes out.',
+      'A license-gated proxy to RavenDB\'s own cloud-hosted assistant at api.ravendb.net, independent of ChatCompletionClient and the user\'s configured AI provider. AiAssistantHandler exposes separate endpoints for consent, usage and the actual assist call - the consent split lets the UI gate the feature before the first real request goes out.',
     githubPath: 'src/Raven.Server/Documents/AI/AiAssistant',
     codeRef: {
       file: 'src/Raven.Server/Documents/AI/AiAssistant/Handlers/AiAssistantHandler.cs',
@@ -1176,7 +1177,7 @@ export const nodes: MapNode[] = [
     label: 'ETL providers',
     category: 'integration',
     summary:
-      'One implementation per destination: RavenDB, SQL, OLAP, Elasticsearch, Kafka/RabbitMQ queues. RavenEtl is the RavenDB-to-RavenDB case; like the other providers it keeps a dedicated RequestExecutor to the destination and re-creates it if the destination\'s server certificate changes mid-run.',
+      'One implementation per destination: RavenDB, SQL (RelationalDatabase), OLAP, Elasticsearch, AI (embeddings generation), Kafka/RabbitMQ queues. RavenEtl is the RavenDB-to-RavenDB case, and is the only provider that keeps a dedicated RequestExecutor to the destination and re-creates it if the destination\'s server certificate changes mid-run - the others don\'t use mutual TLS, so they have no equivalent cert-rotation hook.',
     githubPath: 'src/Raven.Server/Documents/ETL/Providers',
     codeRef: {
       file: 'src/Raven.Server/Documents/ETL/Providers/Raven/RavenEtl.cs',
@@ -1190,7 +1191,7 @@ export const nodes: MapNode[] = [
     label: 'Queue Sink (inbound)',
     category: 'integration',
     summary:
-      'The inbound direction: consuming Kafka / RabbitMQ / Azure Service Bus messages into documents. QueueSinkLoader mirrors EtlLoader\'s shape almost exactly - one process array, one set of unique configuration names - just running the data transfer in the opposite direction.',
+      'The inbound direction: consuming Kafka / RabbitMQ messages into documents (Azure Queue Storage and Amazon SQS exist as configuration options but aren\'t actually supported yet - CreateInstance throws for them). QueueSinkLoader mirrors EtlLoader\'s shape almost exactly - one process array, one set of unique configuration names - just running the data transfer in the opposite direction.',
     githubPath: 'src/Raven.Server/Documents/QueueSink',
     codeRef: {
       file: 'src/Raven.Server/Documents/QueueSink/QueueSinkLoader.cs',
@@ -1205,7 +1206,7 @@ export const nodes: MapNode[] = [
     label: 'Smuggler (import / export)',
     category: 'integration',
     summary:
-      'Bulk import and export of a database, with a sharding-aware companion under Documents/Smuggler. DatabaseSmuggler is the non-sharded case; ShardedDatabaseSmuggler and SingleShardDatabaseSmuggler sit next to it in the same folder for the sharded paths.',
+      'Bulk import and export of a database, with sharding-aware companions sitting next to the main implementation. DatabaseSmuggler (Smuggler/Documents) is the non-sharded case; ShardedDatabaseSmuggler and SingleShardDatabaseSmuggler live right beside it for the sharded paths.',
     githubPath: 'src/Raven.Server/Smuggler',
     codeRef: {
       file: 'src/Raven.Server/Smuggler/Documents/DatabaseSmuggler.cs',
