@@ -289,6 +289,10 @@ const GraphView = forwardRef<HTMLDivElement, GraphViewProps>(function GraphView(
     // A child node isn't its own React Flow node - it only exists inside its
     // expanded parent's box - so center on that parent instead.
     const targetId = getNode(highlightedNodeId)?.parentId ?? highlightedNodeId
+    // The expand effect above already frames this same node (at a zoom that
+    // accounts for its grown size) - without this guard both effects fire on
+    // the same click and race to setCenter, and this one always wins last.
+    if (targetId === expandedNodeId) return
     const node = flowNodes.find((n) => n.id === targetId)
     if (!node) return
     const width = (node.width as number | undefined) ?? NODE_WIDTH
@@ -309,7 +313,7 @@ const GraphView = forwardRef<HTMLDivElement, GraphViewProps>(function GraphView(
       cancelAnimationFrame(raf1)
       cancelAnimationFrame(raf2)
     }
-  }, [highlightedNodeId, flowNodes, setCenter])
+  }, [highlightedNodeId, expandedNodeId, flowNodes, setCenter])
 
   return (
     <div className="graph-view" ref={ref}>
@@ -339,6 +343,12 @@ const GraphView = forwardRef<HTMLDivElement, GraphViewProps>(function GraphView(
         proOptions={{ hideAttribution: true }}
         minZoom={0.2}
         maxZoom={2}
+        // The layout is hand-placed, not user-arranged, and there's no
+        // onConnect - so without these, a drag started near a card's edge
+        // (every card has invisible lane handles covering its border) begins
+        // a phantom connection gesture instead of panning the canvas.
+        nodesDraggable={false}
+        nodesConnectable={false}
       >
         <Background gap={24} color={colors.dot} />
         <Controls showInteractive={false} />

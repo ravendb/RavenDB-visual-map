@@ -87,12 +87,12 @@ export default function MapNode({ data, selected }: NodeProps) {
         {expanded && children && children.length > 0 && (
           <div className="map-node__children">
             {children.map((child) => (
-              <div
+              <button
                 key={child.id}
+                type="button"
                 className={child.id === selectedChildId ? 'map-node__child map-node__child--selected' : 'map-node__child'}
                 data-child-id={child.id}
                 style={{ borderColor: CATEGORY_COLORS[child.category] }}
-                title={child.summary}
               >
                 <div className="map-node__child-head">
                   <span className="map-node__child-tag" style={{ background: CATEGORY_COLORS[child.category] }}>
@@ -111,7 +111,7 @@ export default function MapNode({ data, selected }: NodeProps) {
                 </div>
                 <span className="map-node__child-label">{child.label}</span>
                 <span className="map-node__child-summary">{child.summary}</span>
-              </div>
+              </button>
             ))}
           </div>
         )}

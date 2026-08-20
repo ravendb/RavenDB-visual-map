@@ -387,6 +387,17 @@
   color: var(--color-text);
   overflow: hidden;
   cursor: pointer;
+  /* It's a <button> now (so keyboard/screen-reader users can reach it, not
+     just a mouse), which brings default button chrome to override. */
+  width: 100%;
+  font-family: inherit;
+  text-align: left;
+  appearance: none;
+}
+
+.map-node__child:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
 }
 
 .map-node__child--selected {
