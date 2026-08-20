@@ -9,8 +9,12 @@
       // Applied before first paint so a returning light-mode user doesn't see
       // a flash of the (default) dark theme. Dark needs no attribute - it's
       // the :root default in App.css.
-      if (localStorage.getItem('ravendb-map-theme') === 'light') {
-        document.documentElement.dataset.theme = 'light'
+      try {
+        if (localStorage.getItem('ravendb-map-theme') === 'light') {
+          document.documentElement.dataset.theme = 'light'
+        }
+      } catch (e) {
+        // Storage blocked (private mode, embedded in an iframe) - keep the default.
       }
     </script>
   </head>

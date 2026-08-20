@@ -1,0 +1,29 @@
+name: Validate map content
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # The map is pinned to a ravendb/ravendb branch that keeps moving, so re-run
+  # weekly: this is what catches a path or line number that drifted upstream
+  # without anyone touching this repo.
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+      - run: npm run validate:content
+        env:
+          # Only used to raise the API rate limit; ravendb/ravendb is public.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

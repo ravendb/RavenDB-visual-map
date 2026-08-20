@@ -1,6 +1,16 @@
 import { useEffect, useState } from 'react'
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { PrismLight as SyntaxHighlighter } from 'react-syntax-highlighter'
+import csharp from 'react-syntax-highlighter/dist/esm/languages/prism/csharp'
+import javascript from 'react-syntax-highlighter/dist/esm/languages/prism/javascript'
+import typescript from 'react-syntax-highlighter/dist/esm/languages/prism/typescript'
 import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
+
+// PrismLight + explicit registration instead of the full Prism build: the
+// bundled build ships every language Prism supports (hundreds of kB) and this
+// preview only ever shows the three below.
+SyntaxHighlighter.registerLanguage('csharp', csharp)
+SyntaxHighlighter.registerLanguage('typescript', typescript)
+SyntaxHighlighter.registerLanguage('javascript', javascript)
 import { fetchFileContent, languageForPath } from '../lib/github'
 import { githubBlobUrl, type CodeRef } from '../data/architecture'
 import type { Theme } from '../lib/theme'

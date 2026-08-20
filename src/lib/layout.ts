@@ -1,24 +1,36 @@
-// Hand-placed layout for the macro view: with only ~11 nodes, a deliberate
-// layered diagram (client -> http -> core -> {storage, indexing, cluster, ...})
-// reads far better than a generic force/grid layout, and needs no extra
-// dependency (dagre/elk) for this size of graph.
+// Hand-placed layout for the macro view: a deliberate layered diagram
+// (clients -> HTTP -> core -> {indexing, storage, cluster, ongoing tasks})
+// reads far better than a generic force/grid layout at this size, and needs no
+// extra dependency (dagre/elk).
 
-// X spacing is wide enough that no two cards' bounding boxes come close to
-// overlapping (each is 220px wide) - otherwise an unrelated node can end up
-// sitting directly in the way of an orthogonal edge that merely passes near
-// its column on the way to some other target.
+// Columns are 300px apart and rows at least 170px apart, while a node card is
+// 220px wide - wide enough that no two cards' bounding boxes come close to
+// overlapping, so an unrelated node never sits directly in the way of an
+// orthogonal edge that merely passes near its column.
 export const MACRO_POSITIONS: Record<string, { x: number; y: number }> = {
-  client: { x: 64, y: 0 },
-  studio: { x: 704, y: 0 },
-  security: { x: 384, y: 130 },
-  http: { x: 384, y: 260 },
-  'documents-core': { x: 384, y: 430 },
-  attachments: { x: 896, y: 430 },
-  indexing: { x: 32, y: 620 },
-  storage: { x: 416, y: 660 },
-  cluster: { x: 832, y: 620 },
-  integrations: { x: 1248, y: 430 },
-  infra: { x: 416, y: 850 },
+  // clients
+  client: { x: 300, y: 0 },
+  studio: { x: 900, y: 0 },
+  // front door
+  security: { x: 600, y: 170 },
+  http: { x: 600, y: 340 },
+  // per-database core and what hangs directly off it. Attachments sits a row
+  // higher than the ongoing-task column on the right so the core's edges to
+  // ETL / backup / replication don't have to pass through its card.
+  attachments: { x: 1220, y: 340 },
+  sharding: { x: 0, y: 510 },
+  'documents-core': { x: 600, y: 510 },
+  integrations: { x: 1560, y: 510 },
+  // subsystems fed by the core
+  ai: { x: 0, y: 700 },
+  indexing: { x: 300, y: 700 },
+  cluster: { x: 960, y: 700 },
+  backup: { x: 1560, y: 700 },
+  replication: { x: 1560, y: 880 },
+  // engines and the layer everything persists through
+  'search-engines': { x: 300, y: 890 },
+  storage: { x: 800, y: 890 },
+  infra: { x: 800, y: 1070 },
 }
 
 const MICRO_COLUMNS = 3
