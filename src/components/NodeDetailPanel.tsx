@@ -10,12 +10,14 @@ const CodePreview = lazy(() => import('./CodePreview'))
 interface NodeDetailPanelProps {
   nodeId: string
   theme: Theme
+  /** True while this node's children are currently expanded/drilled into in the graph view. */
+  isExpanded: boolean
   onClose: () => void
   onDrillInto: (id: string) => void
   onSelectNode: (id: string) => void
 }
 
-export default function NodeDetailPanel({ nodeId, theme, onClose, onDrillInto, onSelectNode }: NodeDetailPanelProps) {
+export default function NodeDetailPanel({ nodeId, theme, isExpanded, onClose, onDrillInto, onSelectNode }: NodeDetailPanelProps) {
   const node = getNode(nodeId)
   if (!node) return null
 
@@ -74,7 +76,7 @@ export default function NodeDetailPanel({ nodeId, theme, onClose, onDrillInto, o
             ))}
           </ul>
           <button className="detail-panel__expand-button" onClick={() => onDrillInto(node.id)}>
-            Open micro view ↴
+            {isExpanded ? 'Collapse on map ↑' : 'Show structure on map ↴'}
           </button>
         </div>
       )}

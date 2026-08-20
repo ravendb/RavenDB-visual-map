@@ -19,7 +19,11 @@ export type ViewMode = '2d' | '3d'
 export default function App() {
   const [theme, setTheme] = useTheme()
   const [viewMode, setViewMode] = useState<ViewMode>('2d')
-  const [currentParentId, setCurrentParentId] = useState<string | null>(null)
+  // The 3D view still drills into a dedicated children-only scene; the 2D view
+  // instead expands a node's children in place on the map (see GraphView), so
+  // each view mode needs its own idea of "what's currently open".
+  const [parentId3D, setParentId3D] = useState<string | null>(null)
+  const [expandedNodeId, setExpandedNodeId] = useState<string | null>(null)
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [highlightedNodeId, setHighlightedNodeId] = useState<string | null>(null)
   const exportTargetRef = useRef<HTMLDivElement | null>(null)
@@ -34,35 +38,46 @@ export default function App() {
   function handleSelectNode(nodeId: string) {
     const node = getNode(nodeId)
     if (!node) return
-    // If the node lives in a different view than the one currently open
-    // (e.g. jumped to via search), switch to that view first.
-    const targetParent = node.parentId ?? null
-    if (targetParent !== currentParentId) {
-      setCurrentParentId(targetParent)
+    if (viewMode === '3d') {
+      // If the node lives in a different scene than the one currently open
+      // (e.g. jumped to via search), switch to that scene first.
+      const targetParent = node.parentId ?? null
+      if (targetParent !== parentId3D) setParentId3D(targetParent)
+    } else if (node.parentId) {
+      // A child only renders once its parent is expanded in place on the map.
+      setExpandedNodeId(node.parentId)
     }
     focus(nodeId)
   }
 
-  function handleDrillInto(nodeId: string) {
-    setCurrentParentId(nodeId)
-    setSelectedNodeId(null)
-    // Flows only cover macro nodes - drilling into a micro view would leave
-    // it silently running off-screen.
+  function handleToggleExpand(nodeId: string) {
+    // Flows only cover macro nodes and macro-level edges, and compete visually
+    // with the expand/dim treatment, so opening or closing either kind of
+    // drill-down stops whatever flow was playing.
     if (flow.activeFlowId) flow.stopFlow()
+    if (viewMode === '3d') {
+      setParentId3D(nodeId)
+      setSelectedNodeId(null)
+      return
+    }
+    setExpandedNodeId((prev) => (prev === nodeId ? null : nodeId))
   }
 
   function handleBackToMacro() {
-    setCurrentParentId(null)
+    if (viewMode === '3d') setParentId3D(null)
+    else setExpandedNodeId(null)
     setSelectedNodeId(null)
   }
 
   function handleStartFlow(id: string) {
-    setCurrentParentId(null)
+    setParentId3D(null)
+    setExpandedNodeId(null)
     setSelectedNodeId(null)
     flow.startFlow(id)
   }
 
-  const breadcrumbLabel = currentParentId ? getNode(currentParentId)?.label ?? null : null
+  const breadcrumbLabel =
+    viewMode === '3d' ? (parentId3D ? getNode(parentId3D)?.label ?? null : null) : expandedNodeId ? getNode(expandedNodeId)?.label ?? null : null
 
   return (
     <div className="app">
@@ -85,7 +100,7 @@ export default function App() {
           <ReactFlowProvider>
             <GraphView
               ref={exportTargetRef}
-              currentParentId={currentParentId}
+              expandedNodeId={expandedNodeId}
               selectedNodeId={selectedNodeId}
               highlightedNodeId={highlightedNodeId}
               theme={theme}
@@ -93,14 +108,14 @@ export default function App() {
               flowVisitedNodeIds={flow.visitedNodeIds}
               flowVisitedEdgeIds={flow.visitedEdgeIds}
               onSelectNode={handleSelectNode}
-              onDrillInto={handleDrillInto}
+              onToggleExpand={handleToggleExpand}
             />
           </ReactFlowProvider>
         ) : (
           <Suspense fallback={<div className="view-loading">Loading 3D view…</div>}>
             <GraphView3D
               ref={graph3DRef}
-              currentParentId={currentParentId}
+              currentParentId={parentId3D}
               selectedNodeId={selectedNodeId}
               highlightedNodeId={highlightedNodeId}
               theme={theme}
@@ -108,7 +123,7 @@ export default function App() {
               flowVisitedNodeIds={flow.visitedNodeIds}
               flowVisitedEdgeIds={flow.visitedEdgeIds}
               onSelectNode={handleSelectNode}
-              onDrillInto={handleDrillInto}
+              onDrillInto={handleToggleExpand}
             />
           </Suspense>
         )}
@@ -129,8 +144,9 @@ export default function App() {
           <NodeDetailPanel
             nodeId={selectedNodeId}
             theme={theme}
+            isExpanded={viewMode === '2d' ? expandedNodeId === selectedNodeId : parentId3D === selectedNodeId}
             onClose={() => setSelectedNodeId(null)}
-            onDrillInto={handleDrillInto}
+            onDrillInto={handleToggleExpand}
             onSelectNode={handleSelectNode}
           />
         )}

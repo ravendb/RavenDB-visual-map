@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { CATEGORY_COLORS, CATEGORY_LABELS } from '../lib/categoryColors'
 import type { NodeCategory } from '../data/architecture'
 
@@ -9,10 +9,14 @@ export interface NodeCardProps {
   needsReview?: boolean
   selected?: boolean
   flowState?: 'current' | 'visited'
+  /** True once this node's children are expanded in place - swaps the "expand" hint to "collapse". */
+  expanded?: boolean
   className?: string
   style?: CSSProperties
   onClick?: () => void
   onDoubleClick?: () => void
+  /** Rendered below the tag/label/meta row - used to show the expanded children grid. */
+  children?: ReactNode
 }
 
 // The visual node card shared by the 2D (React Flow) and 3D views, so both
@@ -24,10 +28,12 @@ export default function NodeCard({
   needsReview,
   selected,
   flowState,
+  expanded,
   className,
   style,
   onClick,
   onDoubleClick,
+  children,
 }: NodeCardProps) {
   const color = CATEGORY_COLORS[category]
   const flowClass = flowState ? ` map-node--flow-${flowState}` : ''
@@ -48,13 +54,14 @@ export default function NodeCard({
       </div>
       <div className="map-node__label">{label}</div>
       <div className="map-node__meta">
-        {hasChildren && <span className="map-node__expand">expand ↴</span>}
+        {hasChildren && <span className="map-node__expand">{expanded ? 'collapse ↑' : 'expand ↴'}</span>}
         {needsReview && (
           <span className="map-node__review" title="First pass - not yet reviewed by a subsystem expert">
             needs review
           </span>
         )}
       </div>
+      {children}
     </div>
   )
 }
