@@ -124,11 +124,6 @@ export const nodes: MapNode[] = [
       ],
       source: [{ name: 'src/Raven.Server/Documents/Sharding', url: githubTreeUrl('src/Raven.Server/Documents/Sharding') }],
     },
-    codeRef: {
-      file: 'src/Raven.Server/Documents/Sharding/ShardedDatabaseContext.cs',
-      startLine: 33,
-      expectSymbol: 'class ShardedDatabaseContext',
-    },
   },
   {
     id: 'documents-core',
@@ -169,11 +164,6 @@ export const nodes: MapNode[] = [
         { name: 'src/Raven.Server/Documents/RemoteAttachmentsStorage.cs', url: githubBlobUrl('src/Raven.Server/Documents/RemoteAttachmentsStorage.cs') },
       ],
     },
-    codeRef: {
-      file: 'src/Raven.Server/Documents/AttachmentsStorage.cs',
-      startLine: 52,
-      expectSymbol: 'class AttachmentsStorage',
-    },
   },
   {
     id: 'indexing',
@@ -210,11 +200,6 @@ export const nodes: MapNode[] = [
       ],
       source: [{ name: 'src/Corax', url: githubTreeUrl('src/Corax') }],
     },
-    codeRef: {
-      file: 'src/Corax/Querying/IndexSearcher.cs',
-      startLine: 31,
-      expectSymbol: 'class IndexSearcher',
-    },
   },
   {
     id: 'ai',
@@ -230,11 +215,6 @@ export const nodes: MapNode[] = [
         { name: 'The Embeddings Generation Task', url: 'https://docs.ravendb.net/7.2/ai-integration/generating-embeddings/embeddings-generation-task/' },
       ],
       source: [{ name: 'src/Raven.Server/Documents/AI', url: githubTreeUrl('src/Raven.Server/Documents/AI') }],
-    },
-    codeRef: {
-      file: 'src/Raven.Server/Documents/AI/Embeddings/EmbeddingsGenerator.cs',
-      startLine: 37,
-      expectSymbol: 'class EmbeddingsGenerator',
     },
   },
   {
@@ -274,11 +254,6 @@ export const nodes: MapNode[] = [
       ],
       source: [{ name: 'src/Raven.Server/Rachis', url: githubTreeUrl('src/Raven.Server/Rachis') }],
     },
-    codeRef: {
-      file: 'src/Raven.Server/Rachis/Leader.cs',
-      startLine: 34,
-      expectSymbol: 'class Leader',
-    },
   },
   {
     id: 'replication',
@@ -294,11 +269,6 @@ export const nodes: MapNode[] = [
         { name: 'Replication Conflicts', url: 'https://docs.ravendb.net/7.2/server/clustering/replication/replication-conflicts' },
       ],
       source: [{ name: 'src/Raven.Server/Documents/Replication', url: githubTreeUrl('src/Raven.Server/Documents/Replication') }],
-    },
-    codeRef: {
-      file: 'src/Raven.Server/Documents/Replication/ReplicationLoader.cs',
-      startLine: 46,
-      expectSymbol: 'class ReplicationLoader',
     },
   },
   {
@@ -316,11 +286,6 @@ export const nodes: MapNode[] = [
       ],
       source: [{ name: 'src/Raven.Server/Documents/PeriodicBackup', url: githubTreeUrl('src/Raven.Server/Documents/PeriodicBackup') }],
     },
-    codeRef: {
-      file: 'src/Raven.Server/Documents/PeriodicBackup/BackupTask.cs',
-      startLine: 38,
-      expectSymbol: 'class BackupTask',
-    },
   },
   {
     id: 'integrations',
@@ -336,11 +301,6 @@ export const nodes: MapNode[] = [
         { name: 'PostgreSQL Protocol: Overview', url: 'https://docs.ravendb.net/7.2/integrations/postgresql-protocol/overview' },
       ],
       source: [{ name: 'src/Raven.Server/Documents/ETL', url: githubTreeUrl('src/Raven.Server/Documents/ETL') }],
-    },
-    codeRef: {
-      file: 'src/Raven.Server/Documents/ETL/EtlLoader.cs',
-      startLine: 42,
-      expectSymbol: 'class EtlLoader',
     },
   },
   {

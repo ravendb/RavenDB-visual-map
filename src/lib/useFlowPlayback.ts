@@ -1,12 +1,19 @@
 import { useMemo, useState } from 'react'
-import { edges } from '../data/architecture'
+import { edges, nodes } from '../data/architecture'
 import { FLOWS, getFlowEdgeId } from '../data/flows'
+
+export interface FlowStepView {
+  nodeId: string
+  label: string
+  note: string
+}
 
 export interface FlowPlaybackState {
   activeFlowId: string | null
   activeFlowLabel: string | null
   currentNodeId: string | null
-  currentNote: string | null
+  /** Steps from the start of the flow up to and including the current step. */
+  visitedSteps: FlowStepView[]
   stepNumber: number
   stepCount: number
   isFirstStep: boolean
@@ -15,7 +22,8 @@ export interface FlowPlaybackState {
   visitedEdgeIds: Set<string>
   /** Every node id the active flow touches at any step, regardless of how far playback has gotten - used to dim everything else on the map. */
   flowNodeIds: Set<string>
-  startFlow: (id: string) => void
+  /** stepIndex defaults to the first step; pass a 0-based index to jump straight into a flow (e.g. restoring a deep-linked step). */
+  startFlow: (id: string, stepIndex?: number) => void
   stopFlow: () => void
   nextStep: () => void
   prevStep: () => void
@@ -29,9 +37,10 @@ export function useFlowPlayback(): FlowPlaybackState {
   const isLastStep = !activeFlow || stepIndex >= activeFlow.steps.length - 1
   const isFirstStep = stepIndex <= 0
 
-  function startFlow(id: string) {
+  function startFlow(id: string, stepIndex = 0) {
+    const target = FLOWS.find((f) => f.id === id)
     setActiveFlowId(id)
-    setStepIndex(0)
+    setStepIndex(target ? Math.min(Math.max(stepIndex, 0), target.steps.length - 1) : 0)
   }
 
   function stopFlow() {
@@ -66,11 +75,20 @@ export function useFlowPlayback(): FlowPlaybackState {
     return new Set(activeFlow.steps.map((s) => s.nodeId))
   }, [activeFlow])
 
+  const visitedSteps = useMemo(() => {
+    if (!activeFlow) return []
+    return activeFlow.steps.slice(0, stepIndex + 1).map((s) => ({
+      nodeId: s.nodeId,
+      label: nodes.find((n) => n.id === s.nodeId)?.label ?? s.nodeId,
+      note: s.note,
+    }))
+  }, [activeFlow, stepIndex])
+
   return {
     activeFlowId,
     activeFlowLabel: activeFlow?.label ?? null,
     currentNodeId: activeFlow?.steps[stepIndex]?.nodeId ?? null,
-    currentNote: activeFlow?.steps[stepIndex]?.note ?? null,
+    visitedSteps,
     stepNumber: stepIndex + 1,
     stepCount: activeFlow?.steps.length ?? 0,
     isFirstStep,

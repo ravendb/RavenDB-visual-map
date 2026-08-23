@@ -112,33 +112,6 @@
   max-width: 200px;
 }
 
-.toolbar__view-toggle {
-  display: flex;
-  border: 1px solid #37507a;
-  border-radius: 6px;
-  overflow: hidden;
-  flex-shrink: 0;
-}
-
-.toolbar__view-toggle button {
-  background: none;
-  border: none;
-  color: #9aa0c3;
-  cursor: pointer;
-  font-size: 12.5px;
-  font-weight: 600;
-  padding: 6px 12px;
-}
-
-.toolbar__view-toggle button:hover {
-  background: #192c45;
-}
-
-.toolbar__view-toggle button.is-active {
-  background: #388ee9;
-  color: #fff;
-}
-
 .toolbar__export {
   display: flex;
   gap: 8px;
@@ -244,96 +217,6 @@
 .graph-view {
   flex: 1;
   min-width: 0;
-}
-
-.graph-view--3d {
-  position: relative;
-  overflow: hidden;
-  perspective: 2400px;
-  cursor: grab;
-  touch-action: none;
-  background:
-    radial-gradient(circle at 1px 1px, var(--color-graph-dot) 1px, transparent 0) 0 0 / 24px 24px;
-}
-
-.graph-view--3d:active {
-  cursor: grabbing;
-}
-
-.graph-view__reset {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  z-index: 5;
-  background: var(--color-surface-alt);
-  color: var(--color-text);
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  padding: 6px 12px;
-  font-size: 12.5px;
-  cursor: pointer;
-}
-
-.graph-view__reset:hover {
-  background: var(--color-border);
-}
-
-.scene3d {
-  position: absolute;
-  top: 0;
-  left: 0;
-  transform-style: preserve-3d;
-}
-
-.map-node--3d {
-  position: absolute;
-  top: 0;
-  left: 0;
-  transform-style: preserve-3d;
-  backface-visibility: hidden;
-}
-
-.edge3d {
-  position: absolute;
-  top: 0;
-  left: 0;
-  height: 2px;
-  transform-origin: 0 50%;
-  opacity: 0.65;
-  pointer-events: none;
-}
-
-.edge3d--flow {
-  height: 3px;
-  opacity: 1;
-  background-image: repeating-linear-gradient(
-    90deg,
-    rgba(15, 20, 37, 0.9) 0,
-    rgba(15, 20, 37, 0.9) 6px,
-    transparent 6px,
-    transparent 12px
-  );
-  animation: edge3d-flow 0.6s linear infinite;
-}
-
-@keyframes edge3d-flow {
-  from {
-    background-position: 0 0;
-  }
-  to {
-    background-position: -12px 0;
-  }
-}
-
-.edge3d__label {
-  position: absolute;
-  top: 0;
-  left: 0;
-  font-size: 11px;
-  padding: 2px 6px;
-  border-radius: 4px;
-  white-space: nowrap;
-  pointer-events: none;
 }
 
 /* React Flow node */
@@ -501,67 +384,58 @@
   }
 }
 
-.flow-banner {
-  position: absolute;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 6;
-  background: var(--color-surface);
-  border: 1px solid #1cc8ee;
-  border-radius: 8px;
-  padding: 10px 14px;
-  width: 360px;
-  max-width: calc(100% - 32px);
-  box-shadow: 0 8px 24px var(--color-shadow);
+.flow-panel {
+  border-left: 3px solid #1cc8ee;
 }
 
-.flow-banner__header {
+.flow-panel__step-count {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin: 4px 0 0;
+}
+
+.flow-panel__steps {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
   display: flex;
-  align-items: center;
-  gap: 10px;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.flow-banner__label {
-  font-weight: 700;
-  font-size: 13px;
+.flow-panel__step-row {
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.flow-panel__step-title {
+  font-size: 12.5px;
   color: var(--color-text);
 }
 
-.flow-banner__step {
-  font-size: 11px;
-  color: var(--color-text-muted);
-  white-space: nowrap;
+.flow-panel__step-row--current {
+  border: 1px solid #1cc8ee;
+  background: rgba(28, 200, 238, 0.08);
+  padding: 6px 8px;
 }
 
-.flow-banner__stop {
-  margin-left: auto;
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--color-text-muted);
-  font-size: 14px;
-  line-height: 1;
-  padding: 2px 4px;
+.flow-panel__step-row--current .flow-panel__step-title {
+  font-weight: 600;
 }
 
-.flow-banner__stop:hover {
-  color: var(--color-text);
-}
-
-.flow-banner__note {
-  margin: 6px 0 0;
+.flow-panel__step-note {
+  margin: 4px 0 0;
   font-size: 12.5px;
   color: var(--color-text-muted);
 }
 
-.flow-banner__nav {
+.flow-panel__nav {
   display: flex;
   gap: 8px;
-  margin-top: 10px;
+  margin-top: 14px;
 }
 
-.flow-banner__nav button {
+.flow-panel__nav button {
   flex: 1;
   background: #192c45;
   color: #f7f5fa;
@@ -572,11 +446,11 @@
   cursor: pointer;
 }
 
-.flow-banner__nav button:hover:not(:disabled) {
+.flow-panel__nav button:hover:not(:disabled) {
   background: #37507a;
 }
 
-.flow-banner__nav button:disabled {
+.flow-panel__nav button:disabled {
   opacity: 0.4;
   cursor: default;
 }
@@ -636,42 +510,49 @@
   margin-bottom: 14px;
 }
 
+/* Class/type names, protocol acronyms, and domain jargon (etag, Voron, ...)
+   picked out of prose by src/lib/highlightTerms.tsx. */
+.inline-code {
+  font-family: ui-monospace, 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 0.92em;
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 4px;
+  padding: 0 5px;
+  color: var(--color-text);
+}
+
 .detail-panel__links {
   display: flex;
   flex-direction: column;
 }
 
 .detail-panel__github-link {
-  display: block;
-  font-size: 13px;
   color: var(--color-link);
   text-decoration: none;
-  margin-bottom: 8px;
 }
 
 .detail-panel__github-link:hover {
   text-decoration: underline;
 }
 
-.detail-panel__docs-link {
-  display: block;
+.detail-panel__ref-line {
   font-size: 13px;
+  color: var(--color-text);
+  margin: 0 0 8px;
+}
+
+.detail-panel__ref-line:last-child {
+  margin-bottom: 0;
+}
+
+.detail-panel__docs-link {
   color: var(--color-link);
   text-decoration: none;
-  margin-bottom: 8px;
 }
 
 .detail-panel__docs-link:hover {
   text-decoration: underline;
-}
-
-/* Fallback shown while the lazily-loaded 3D view is being fetched. */
-.view-loading {
-  flex: 1;
-  display: grid;
-  place-items: center;
-  font-size: 13px;
-  color: var(--color-text-muted);
 }
 
 .detail-panel__section {
@@ -686,42 +567,6 @@
   letter-spacing: 0.04em;
   color: var(--color-text-muted);
   margin: 0 0 8px;
-}
-
-.detail-panel__children {
-  list-style: none;
-  margin: 0 0 10px;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.detail-panel__children button {
-  width: 100%;
-  text-align: left;
-  padding: 6px 8px;
-  border: 1px solid var(--color-border);
-  background: var(--color-surface-alt);
-  border-radius: 6px;
-  font-size: 12.5px;
-  cursor: pointer;
-  color: var(--color-text);
-}
-
-.detail-panel__children button:hover {
-  background: var(--color-border);
-}
-
-.detail-panel__expand-button {
-  width: 100%;
-  padding: 8px;
-  border: none;
-  border-radius: 6px;
-  background: #192c45;
-  color: #fff;
-  font-size: 12.5px;
-  cursor: pointer;
 }
 
 /* Code preview */
