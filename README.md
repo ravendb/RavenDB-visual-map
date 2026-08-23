@@ -56,7 +56,7 @@ RAVENDB_REPO_DIR=/path/to/ravendb RAVENDB_REPO_REF=v7.2 npm run validate:content
 
 ### Content-accuracy caveat
 
-The map is pinned to one branch of the server repo (`REF` in `architecture.ts`, currently `v7.2`). Paths and line numbers are machine-verified against that ref, but **prose is not**: nodes whose summary/description were written from folder structure plus general RavenDB knowledge, without a subsystem-expert pass, carry `needsReview: true` and show a warning in the detail panel. `npm run validate:content` prints how many are left. If your team is already running the `ravendb-kb` review process, the same discipline applies here: an expert in a given subsystem should check its node(s) against the real code and clear the flag.
+The map is pinned to one branch of the server repo (`REF` in `architecture.ts`, currently `v7.2`). Paths and line numbers are machine-verified against that ref, but **prose is not**: node summaries/descriptions were written from folder structure plus general RavenDB knowledge, without a subsystem-expert pass. If your team is already running the `ravendb-kb` review process, the same discipline applies here: an expert in a given subsystem should check its node(s) against the real code.
 
 ## Deployment
 
@@ -64,6 +64,5 @@ The map is pinned to one branch of the server repo (`REF` in `architecture.ts`, 
 
 ## Known limitations
 
-- Prose on nodes marked `needsReview: true` has not been checked by a subsystem expert yet - see the caveat above.
 - The inline preview fetches from `raw.githubusercontent.com`, which is rate-limited per IP; if a fetch fails, the panel falls back to a plain "View on GitHub" link. Fetched files are cached in `localStorage` to minimize repeat calls.
 - `REF` is a single hardcoded branch - there is no version switcher, so the map shows one RavenDB version at a time.

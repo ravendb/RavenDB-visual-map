@@ -13,6 +13,7 @@ interface GraphView3DProps {
   flowCurrentNodeId: string | null
   flowVisitedNodeIds: Set<string>
   flowVisitedEdgeIds: Set<string>
+  flowNodeIds: Set<string>
   onSelectNode: (id: string) => void
   onDrillInto: (id: string) => void
 }
@@ -38,7 +39,6 @@ interface LayoutNode {
   label: string
   category: NodeCategory
   hasChildren: boolean
-  needsReview?: boolean
   x: number
   y: number
   z: number
@@ -53,6 +53,7 @@ const GraphView3D = forwardRef<GraphView3DHandle, GraphView3DProps>(function Gra
     flowCurrentNodeId,
     flowVisitedNodeIds,
     flowVisitedEdgeIds,
+    flowNodeIds,
     onSelectNode,
     onDrillInto,
   },
@@ -97,7 +98,6 @@ const GraphView3D = forwardRef<GraphView3DHandle, GraphView3DProps>(function Gra
             label: n.label,
             category: n.category,
             hasChildren: getChildren(n.id).length > 0,
-            needsReview: n.needsReview,
             x: pos.x,
             y: pos.y,
             z: -pos.y * Z_SCALE,
@@ -111,7 +111,6 @@ const GraphView3D = forwardRef<GraphView3DHandle, GraphView3DProps>(function Gra
         label: n.label,
         category: n.category,
         hasChildren: getChildren(n.id).length > 0,
-        needsReview: n.needsReview,
         x: pos.x,
         y: pos.y,
         z: -pos.y * Z_SCALE,
@@ -142,13 +141,15 @@ const GraphView3D = forwardRef<GraphView3DHandle, GraphView3DProps>(function Gra
   }, [size, bbox])
 
   // Center on the selected node (so it stays centered in the space left of
-  // the detail panel, whatever that panel's width is) - fall back to the
-  // whole layout's center when nothing is selected.
+  // the detail panel, whatever that panel's width is) - falling back to the
+  // active flow's current step so playback re-centers on its own, then to the
+  // whole layout's center when neither applies.
   const focalPoint = useMemo(() => {
-    const selected = selectedNodeId ? layoutNodes.find((n) => n.id === selectedNodeId) : undefined
-    if (!selected) return { x: bbox.cx, y: bbox.cy, z: bbox.cz }
-    return { x: selected.x + NODE_WIDTH / 2, y: selected.y + NODE_HEIGHT / 2, z: selected.z }
-  }, [selectedNodeId, layoutNodes, bbox])
+    const focusId = selectedNodeId ?? flowCurrentNodeId
+    const focused = focusId ? layoutNodes.find((n) => n.id === focusId) : undefined
+    if (!focused) return { x: bbox.cx, y: bbox.cy, z: bbox.cz }
+    return { x: focused.x + NODE_WIDTH / 2, y: focused.y + NODE_HEIGHT / 2, z: focused.z }
+  }, [selectedNodeId, flowCurrentNodeId, layoutNodes, bbox])
 
   const hasInteractedRef = useRef(false)
 
@@ -252,6 +253,8 @@ const GraphView3D = forwardRef<GraphView3DHandle, GraphView3DProps>(function Gra
             const pitch = Math.atan2(dy, horiz) * (180 / Math.PI)
             return {
               id: e.id,
+              source: e.source,
+              target: e.target,
               label: e.label,
               sx,
               sy,
@@ -285,8 +288,11 @@ const GraphView3D = forwardRef<GraphView3DHandle, GraphView3DProps>(function Gra
       >
         {edgeSegments.map((edge) => {
           const isFlowEdge = flowVisitedEdgeIds.has(edge.id)
+          // Mirrors the 2D view: while a flow plays, fade out edges that
+          // don't connect two nodes the flow actually visits.
+          const inFocus = !flowCurrentNodeId || (flowNodeIds.has(edge.source) && flowNodeIds.has(edge.target))
           return (
-            <div key={edge.id}>
+            <div key={edge.id} style={{ opacity: inFocus ? 1 : 0.15 }}>
               <div
                 className={isFlowEdge ? 'edge3d edge3d--flow' : 'edge3d'}
                 style={{
@@ -314,17 +320,19 @@ const GraphView3D = forwardRef<GraphView3DHandle, GraphView3DProps>(function Gra
         {layoutNodes.map((node) => {
           const isDragEndClick = () => !dragRef.current?.dragged
           const flowState = node.id === flowCurrentNodeId ? 'current' : flowVisitedNodeIds.has(node.id) ? 'visited' : undefined
+          // Mirrors the 2D view: while a flow plays, everything it doesn't touch fades back.
+          const dimmed = Boolean(flowCurrentNodeId) && !flowNodeIds.has(node.id)
           return (
             <NodeCard
               key={node.id}
               className="map-node--3d"
               style={{
                 transform: `translate3d(${node.x}px, ${node.y}px, ${node.z}px)`,
+                opacity: dimmed ? 0.35 : 1,
               }}
               label={node.label}
               category={node.category}
               hasChildren={node.hasChildren}
-              needsReview={node.needsReview}
               selected={node.id === selectedNodeId || node.id === highlightedNodeId}
               flowState={flowState}
               onClick={() => {

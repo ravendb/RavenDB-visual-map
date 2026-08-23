@@ -49,6 +49,7 @@ interface GraphViewProps {
   flowCurrentNodeId: string | null
   flowVisitedNodeIds: Set<string>
   flowVisitedEdgeIds: Set<string>
+  flowNodeIds: Set<string>
   onSelectNode: (id: string) => void
   onToggleExpand: (id: string) => void
 }
@@ -150,12 +151,17 @@ function buildFlowElements(
   flowCurrentNodeId: string | null,
   flowVisitedNodeIds: Set<string>,
   flowVisitedEdgeIds: Set<string>,
+  flowNodeIds: Set<string>,
 ): { flowNodes: Node<MapNodeData>[]; flowEdges: Edge[] } {
   function flowState(id: string): 'current' | 'visited' | undefined {
     if (id === flowCurrentNodeId) return 'current'
     if (flowVisitedNodeIds.has(id)) return 'visited'
     return undefined
   }
+  // While a flow is playing (and nothing is expanded - the two treatments
+  // never overlap, see handleToggleExpand), everything the flow doesn't touch
+  // fades into the background, like the expand spotlight above.
+  const isFlowActive = Boolean(flowCurrentNodeId) && !expandedNodeId
 
   const macro = allNodes.filter((n) => !n.parentId)
   const colors = THEME_COLORS[theme]
@@ -179,12 +185,12 @@ function buildFlowElements(
         label: n.label,
         category: n.category,
         hasChildren: children.length > 0,
-        needsReview: n.needsReview,
         flowState: flowState(n.id),
         handles: nodeHandles.get(n.id),
         expanded: isExpanded,
-        // Push everything but the expanded node into the background, like a spotlight.
-        dimmed: Boolean(expandedNodeId) && n.id !== expandedNodeId,
+        // Push everything but the expanded node - or, during a flow, everything
+        // the flow doesn't touch - into the background, like a spotlight.
+        dimmed: expandedNodeId ? n.id !== expandedNodeId : isFlowActive && !flowNodeIds.has(n.id),
         selectedChildId: isExpanded ? selectedNodeId ?? undefined : undefined,
         children: isExpanded
           ? children.map((c) => ({
@@ -192,7 +198,6 @@ function buildFlowElements(
               label: c.label,
               category: c.category,
               summary: c.summary,
-              needsReview: c.needsReview,
               hasCodeRef: Boolean(c.codeRef),
             }))
           : undefined,
@@ -208,7 +213,12 @@ function buildFlowElements(
     // it actually connects.
     const targetCategory = getNode(e.target)?.category
     const edgeColor = isFlowEdge ? FLOW_ACCENT : targetCategory ? CATEGORY_COLORS[targetCategory] : colors.edge
-    const touchesExpanded = !expandedNodeId || e.source === expandedNodeId || e.target === expandedNodeId
+    // Mirrors the node dimming above: with a node expanded, only edges
+    // touching it stay in focus; with a flow playing, only edges that connect
+    // two nodes the flow actually visits do.
+    const inFocus = expandedNodeId
+      ? e.source === expandedNodeId || e.target === expandedNodeId
+      : !isFlowActive || (flowNodeIds.has(e.source) && flowNodeIds.has(e.target))
     return {
       id: e.id,
       source: e.source,
@@ -217,15 +227,15 @@ function buildFlowElements(
       type: 'smoothstep',
       label: e.label,
       animated: isFlowEdge,
-      style: { stroke: edgeColor, strokeWidth: isFlowEdge ? 2.5 : 1.5, opacity: touchesExpanded ? (isFlowEdge ? 1 : 0.8) : 0.1 },
+      style: { stroke: edgeColor, strokeWidth: isFlowEdge ? 2.5 : 1.5, opacity: inFocus ? (isFlowEdge ? 1 : 0.8) : 0.1 },
       markerEnd: { type: MarkerType.ArrowClosed, color: edgeColor, width: 14, height: 14 },
       labelStyle: {
         fill: isFlowEdge ? FLOW_ACCENT : colors.edgeLabel,
         fontSize: 11,
         fontWeight: isFlowEdge ? 700 : 500,
-        opacity: touchesExpanded ? 1 : 0.25,
+        opacity: inFocus ? 1 : 0.25,
       },
-      labelBgStyle: { fill: colors.labelBg, fillOpacity: touchesExpanded ? 0.92 : 0.25 },
+      labelBgStyle: { fill: colors.labelBg, fillOpacity: inFocus ? 0.92 : 0.25 },
       labelBgPadding: [4, 2] as [number, number],
       labelBgBorderRadius: 4,
     }
@@ -244,14 +254,15 @@ const GraphView = forwardRef<HTMLDivElement, GraphViewProps>(function GraphView(
     flowCurrentNodeId,
     flowVisitedNodeIds,
     flowVisitedEdgeIds,
+    flowNodeIds,
     onSelectNode,
     onToggleExpand,
   },
   ref,
 ) {
   const { flowNodes, flowEdges } = useMemo(
-    () => buildFlowElements(expandedNodeId, selectedNodeId, theme, flowCurrentNodeId, flowVisitedNodeIds, flowVisitedEdgeIds),
-    [expandedNodeId, selectedNodeId, theme, flowCurrentNodeId, flowVisitedNodeIds, flowVisitedEdgeIds],
+    () => buildFlowElements(expandedNodeId, selectedNodeId, theme, flowCurrentNodeId, flowVisitedNodeIds, flowVisitedEdgeIds, flowNodeIds),
+    [expandedNodeId, selectedNodeId, theme, flowCurrentNodeId, flowVisitedNodeIds, flowVisitedEdgeIds, flowNodeIds],
   )
   const colors = THEME_COLORS[theme]
   const { setCenter, fitView } = useReactFlow()
@@ -283,6 +294,24 @@ const GraphView = forwardRef<HTMLDivElement, GraphViewProps>(function GraphView(
       cancelAnimationFrame(raf2)
     }
   }, [expandedNodeId, setCenter])
+
+  useEffect(() => {
+    // Step the camera along with flow playback, so the reader's focus moves
+    // with the highlighted step instead of them having to hunt for it across
+    // a map that's mostly dimmed out.
+    if (!flowCurrentNodeId) return
+    const center = nodeCenter(MACRO_POSITIONS[flowCurrentNodeId] ?? { x: 0, y: 0 })
+    let raf2 = 0
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => {
+        setCenter(center.x, center.y, { zoom: 0.9, duration: 500 })
+      })
+    })
+    return () => {
+      cancelAnimationFrame(raf1)
+      cancelAnimationFrame(raf2)
+    }
+  }, [flowCurrentNodeId, setCenter])
 
   useEffect(() => {
     if (!highlightedNodeId) return

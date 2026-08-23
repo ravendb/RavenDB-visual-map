@@ -13,6 +13,8 @@ export interface FlowPlaybackState {
   isLastStep: boolean
   visitedNodeIds: Set<string>
   visitedEdgeIds: Set<string>
+  /** Every node id the active flow touches at any step, regardless of how far playback has gotten - used to dim everything else on the map. */
+  flowNodeIds: Set<string>
   startFlow: (id: string) => void
   stopFlow: () => void
   nextStep: () => void
@@ -59,6 +61,11 @@ export function useFlowPlayback(): FlowPlaybackState {
     return ids
   }, [activeFlow, stepIndex])
 
+  const flowNodeIds = useMemo(() => {
+    if (!activeFlow) return new Set<string>()
+    return new Set(activeFlow.steps.map((s) => s.nodeId))
+  }, [activeFlow])
+
   return {
     activeFlowId,
     activeFlowLabel: activeFlow?.label ?? null,
@@ -70,6 +77,7 @@ export function useFlowPlayback(): FlowPlaybackState {
     isLastStep,
     visitedNodeIds,
     visitedEdgeIds,
+    flowNodeIds,
     startFlow,
     stopFlow,
     nextStep,
