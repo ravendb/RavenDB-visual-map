@@ -52,6 +52,7 @@ export default function App() {
   function handleStartFlow(id: string) {
     setExpandedNodeId(null)
     setSelectedNodeId(null)
+    setHighlightedNodeId(null)
     flow.startFlow(id)
   }
 
@@ -68,6 +69,7 @@ export default function App() {
   function applyUrlState(state: MapUrlState) {
     setExpandedNodeId(null)
     setSelectedNodeId(null)
+    setHighlightedNodeId(null)
     if (state.flowId) {
       flow.startFlow(state.flowId, Math.max((state.step ?? 1) - 1, 0))
       return

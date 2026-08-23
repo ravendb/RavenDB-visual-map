@@ -315,6 +315,11 @@ const GraphView = forwardRef<HTMLDivElement, GraphViewProps>(function GraphView(
 
   useEffect(() => {
     if (!highlightedNodeId) return
+    // Flow playback owns the camera while it's active - this effect's deps
+    // include flowNodes, which changes on every step, so without this guard
+    // it would refire on a stale highlightedNodeId left over from before the
+    // flow started and steal the camera from the flow's own centering effect.
+    if (flowCurrentNodeId) return
     // A child node isn't its own React Flow node - it only exists inside its
     // expanded parent's box - so center on that parent instead.
     const targetId = getNode(highlightedNodeId)?.parentId ?? highlightedNodeId
@@ -342,7 +347,7 @@ const GraphView = forwardRef<HTMLDivElement, GraphViewProps>(function GraphView(
       cancelAnimationFrame(raf1)
       cancelAnimationFrame(raf2)
     }
-  }, [highlightedNodeId, expandedNodeId, flowNodes, setCenter])
+  }, [highlightedNodeId, expandedNodeId, flowCurrentNodeId, flowNodes, setCenter])
 
   return (
     <div className="graph-view" ref={ref}>
