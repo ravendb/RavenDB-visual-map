@@ -1,12 +1,19 @@
 import { useMemo, useState } from 'react'
-import { edges } from '../data/architecture'
+import { edges, nodes } from '../data/architecture'
 import { FLOWS, getFlowEdgeId } from '../data/flows'
+
+export interface FlowStepView {
+  nodeId: string
+  label: string
+  note: string
+}
 
 export interface FlowPlaybackState {
   activeFlowId: string | null
   activeFlowLabel: string | null
   currentNodeId: string | null
-  currentNote: string | null
+  /** Steps from the start of the flow up to and including the current step. */
+  visitedSteps: FlowStepView[]
   stepNumber: number
   stepCount: number
   isFirstStep: boolean
@@ -66,11 +73,20 @@ export function useFlowPlayback(): FlowPlaybackState {
     return new Set(activeFlow.steps.map((s) => s.nodeId))
   }, [activeFlow])
 
+  const visitedSteps = useMemo(() => {
+    if (!activeFlow) return []
+    return activeFlow.steps.slice(0, stepIndex + 1).map((s) => ({
+      nodeId: s.nodeId,
+      label: nodes.find((n) => n.id === s.nodeId)?.label ?? s.nodeId,
+      note: s.note,
+    }))
+  }, [activeFlow, stepIndex])
+
   return {
     activeFlowId,
     activeFlowLabel: activeFlow?.label ?? null,
     currentNodeId: activeFlow?.steps[stepIndex]?.nodeId ?? null,
-    currentNote: activeFlow?.steps[stepIndex]?.note ?? null,
+    visitedSteps,
     stepNumber: stepIndex + 1,
     stepCount: activeFlow?.steps.length ?? 0,
     isFirstStep,

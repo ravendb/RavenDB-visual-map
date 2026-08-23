@@ -132,7 +132,7 @@ export default function App() {
         {flow.activeFlowId && (
           <FlowBanner
             label={flow.activeFlowLabel ?? ''}
-            note={flow.currentNote}
+            steps={flow.visitedSteps}
             stepNumber={flow.stepNumber}
             stepCount={flow.stepCount}
             canGoPrev={!flow.isFirstStep}

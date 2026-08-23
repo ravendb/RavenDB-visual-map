@@ -1,6 +1,9 @@
+import { useEffect, useRef } from 'react'
+import type { FlowStepView } from '../lib/useFlowPlayback'
+
 interface FlowBannerProps {
   label: string
-  note: string | null
+  steps: FlowStepView[]
   stepNumber: number
   stepCount: number
   canGoPrev: boolean
@@ -12,7 +15,7 @@ interface FlowBannerProps {
 
 export default function FlowBanner({
   label,
-  note,
+  steps,
   stepNumber,
   stepCount,
   canGoPrev,
@@ -21,6 +24,12 @@ export default function FlowBanner({
   onNext,
   onStop,
 }: FlowBannerProps) {
+  const currentRef = useRef<HTMLLIElement>(null)
+
+  useEffect(() => {
+    currentRef.current?.scrollIntoView({ block: 'nearest' })
+  }, [stepNumber])
+
   return (
     <div className="flow-banner">
       <div className="flow-banner__header">
@@ -32,7 +41,23 @@ export default function FlowBanner({
           ✕
         </button>
       </div>
-      {note && <p className="flow-banner__note">{note}</p>}
+      <ol className="flow-banner__steps">
+        {steps.map((step, i) => {
+          const isCurrent = i === steps.length - 1
+          return (
+            <li
+              key={`${step.nodeId}-${i}`}
+              ref={isCurrent ? currentRef : undefined}
+              className={isCurrent ? 'flow-banner__step-row flow-banner__step-row--current' : 'flow-banner__step-row'}
+            >
+              <span className="flow-banner__step-title">
+                {i + 1}. {step.label}
+              </span>
+              {isCurrent && <p className="flow-banner__step-note">{step.note}</p>}
+            </li>
+          )
+        })}
+      </ol>
       <div className="flow-banner__nav">
         <button onClick={onPrev} disabled={!canGoPrev}>
           ← Previous

@@ -51,11 +51,19 @@ export default function NodeDetailPanel({ nodeId, theme, isExpanded, onClose, on
               </a>
             )
           })}
-          {node.references.docs?.map((link) => (
-            <a key={link.url} className="detail-panel__docs-link" href={link.url} target="_blank" rel="noreferrer">
-              Docs: {link.name}
-            </a>
-          ))}
+          {node.references.docs && node.references.docs.length > 0 && (
+            <p className="detail-panel__docs-line">
+              Docs:{' '}
+              {node.references.docs.map((link, i) => (
+                <span key={link.url}>
+                  <a className="detail-panel__docs-link" href={link.url} target="_blank" rel="noreferrer">
+                    {link.name}
+                  </a>
+                  {i < node.references.docs!.length - 1 ? ', ' : ''}
+                </span>
+              ))}
+            </p>
+          )}
         </div>
       </div>
 
