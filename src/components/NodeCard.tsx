@@ -6,7 +6,6 @@ export interface NodeCardProps {
   label: string
   category: NodeCategory
   hasChildren: boolean
-  needsReview?: boolean
   selected?: boolean
   flowState?: 'current' | 'visited'
   /** True once this node's children are expanded in place - swaps the "expand" hint to "collapse". */
@@ -25,7 +24,6 @@ export default function NodeCard({
   label,
   category,
   hasChildren,
-  needsReview,
   selected,
   flowState,
   expanded,
@@ -55,11 +53,6 @@ export default function NodeCard({
       <div className="map-node__label">{label}</div>
       <div className="map-node__meta">
         {hasChildren && <span className="map-node__expand">{expanded ? 'collapse ↑' : 'expand ↴'}</span>}
-        {needsReview && (
-          <span className="map-node__review" title="First pass - not yet reviewed by a subsystem expert">
-            needs review
-          </span>
-        )}
       </div>
       {children}
     </div>

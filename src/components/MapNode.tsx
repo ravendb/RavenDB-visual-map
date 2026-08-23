@@ -18,7 +18,6 @@ export interface ChildSummary {
   label: string
   category: NodeCategory
   summary: string
-  needsReview?: boolean
   /** Whether this child has an inline code preview available (a specific file/line, not just a folder). */
   hasCodeRef?: boolean
 }
@@ -27,7 +26,6 @@ export interface MapNodeData {
   label: string
   category: NodeCategory
   hasChildren: boolean
-  needsReview?: boolean
   flowState?: 'current' | 'visited'
   /** Computed per-diagram in GraphView so edges get a distinct anchor per lane; falls back to one centered handle per side. */
   handles?: NodeHandleSpec[]
@@ -61,7 +59,7 @@ function handleStyle(side: HandleSide, offset: number) {
 }
 
 export default function MapNode({ data, selected }: NodeProps) {
-  const { label, category, hasChildren, needsReview, flowState, handles, expanded, children, selectedChildId, dimmed } =
+  const { label, category, hasChildren, flowState, handles, expanded, children, selectedChildId, dimmed } =
     data as MapNodeData
   const specs = handles && handles.length > 0 ? handles : DEFAULT_HANDLES
 
@@ -77,7 +75,6 @@ export default function MapNode({ data, selected }: NodeProps) {
         label={label}
         category={category}
         hasChildren={hasChildren}
-        needsReview={needsReview}
         selected={selected}
         flowState={flowState}
         expanded={expanded}
@@ -101,11 +98,6 @@ export default function MapNode({ data, selected }: NodeProps) {
                   {child.hasCodeRef && (
                     <span className="map-node__child-code" title="Has an inline code preview">
                       {'</>'}
-                    </span>
-                  )}
-                  {child.needsReview && (
-                    <span className="map-node__child-review" title="First pass - not yet reviewed by a subsystem expert">
-                      !
                     </span>
                   )}
                 </div>

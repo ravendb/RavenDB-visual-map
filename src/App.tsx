@@ -107,6 +107,7 @@ export default function App() {
               flowCurrentNodeId={flow.currentNodeId}
               flowVisitedNodeIds={flow.visitedNodeIds}
               flowVisitedEdgeIds={flow.visitedEdgeIds}
+              flowNodeIds={flow.flowNodeIds}
               onSelectNode={handleSelectNode}
               onToggleExpand={handleToggleExpand}
             />
@@ -122,6 +123,7 @@ export default function App() {
               flowCurrentNodeId={flow.currentNodeId}
               flowVisitedNodeIds={flow.visitedNodeIds}
               flowVisitedEdgeIds={flow.visitedEdgeIds}
+              flowNodeIds={flow.flowNodeIds}
               onSelectNode={handleSelectNode}
               onDrillInto={handleToggleExpand}
             />

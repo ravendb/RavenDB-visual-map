@@ -1,5 +1,5 @@
 import { Suspense, lazy } from 'react'
-import { getChildren, getNode, githubBlobUrl, githubTreeUrl } from '../data/architecture'
+import { getChildren, getNode } from '../data/architecture'
 import { CATEGORY_COLORS, CATEGORY_LABELS } from '../lib/categoryColors'
 import type { Theme } from '../lib/theme'
 
@@ -22,10 +22,6 @@ export default function NodeDetailPanel({ nodeId, theme, isExpanded, onClose, on
   if (!node) return null
 
   const children = getChildren(node.id)
-  // Not `includes('.')`: almost every folder path here contains a dot
-  // ("src/Raven.Server/Documents"), which built a /blob/ URL for a directory.
-  const isFile = /\.[a-z0-9]{1,5}$/i.test(node.githubPath)
-  const githubUrl = isFile ? githubBlobUrl(node.githubPath) : githubTreeUrl(node.githubPath)
 
   return (
     <aside className="detail-panel">
@@ -37,24 +33,31 @@ export default function NodeDetailPanel({ nodeId, theme, isExpanded, onClose, on
         {CATEGORY_LABELS[node.category]}
       </div>
       <h2>{node.label}</h2>
-      {node.needsReview && (
-        <p className="detail-panel__review-note">
-          First pass, not yet checked by a subsystem expert — treat details here as a starting point.
-        </p>
-      )}
 
       <p className="detail-panel__summary">{node.summary}</p>
       {node.description && <p className="detail-panel__description">{node.description}</p>}
 
-      <a className="detail-panel__github-link" href={githubUrl} target="_blank" rel="noreferrer">
-        View {node.githubPath} on GitHub ↗
-      </a>
-
-      {node.docsUrl && (
-        <a className="detail-panel__docs-link" href={node.docsUrl} target="_blank" rel="noreferrer">
-          Read the documentation for this area ↗
-        </a>
-      )}
+      <div className="detail-panel__section detail-panel__references">
+        <h3>References</h3>
+        <div className="detail-panel__links">
+          {node.references.source.map((link) => {
+            const label =
+              node.references.source.length === 1
+                ? node.label
+                : link.name.slice(link.name.lastIndexOf('/') + 1)
+            return (
+              <a key={link.url} className="detail-panel__github-link" href={link.url} target="_blank" rel="noreferrer">
+                Source: {label} on GitHub repository
+              </a>
+            )
+          })}
+          {node.references.docs?.map((link) => (
+            <a key={link.url} className="detail-panel__docs-link" href={link.url} target="_blank" rel="noreferrer">
+              Docs: {link.name}
+            </a>
+          ))}
+        </div>
+      </div>
 
       {node.codeRef && (
         <div className="detail-panel__section">

@@ -2,7 +2,7 @@
  * Validates the map's content against the real ravendb/ravendb repository.
  *
  * Run with `npm run validate:content`. Checks, for the pinned REF:
- *   1. every `githubPath` exists (file or folder),
+ *   1. every `references.source` URL points at a path that exists (file or folder),
  *   2. every `codeRef.file` exists and `codeRef.startLine` really contains
  *      `codeRef.expectSymbol` (so a line number can never drift unnoticed),
  *   3. every `codeRef` declares an `expectSymbol` in the first place,
@@ -31,6 +31,15 @@ import { MACRO_POSITIONS } from '../src/lib/layout'
 
 const token = process.env.GITHUB_TOKEN
 const headers: Record<string, string> = token ? { authorization: `Bearer ${token}` } : {}
+
+const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+const SOURCE_URL_RE = new RegExp(`^https://github\\.com/${escapeRegExp(REPO)}/(?:blob|tree)/${escapeRegExp(REF)}/([^#]+)`)
+
+/** Recovers the repo-relative path from a `references.source` URL built by githubBlobUrl/githubTreeUrl. */
+function sourcePath(url: string): string | null {
+  const match = url.match(SOURCE_URL_RE)
+  return match ? match[1] : null
+}
 
 /** Where an automatic fallback clone lives; override to reuse an existing one. */
 const CLONE_DIR = process.env.RAVENDB_CLONE_DIR ?? join('node_modules', '.cache', 'ravendb-clone')
@@ -200,6 +209,9 @@ function checkStructure() {
     if (node.codeRef && !node.codeRef.expectSymbol) {
       fail(`node "${node.id}" has a codeRef without expectSymbol - add one so CI can verify the line`)
     }
+    if (node.references.source.length === 0) {
+      fail(`node "${node.id}" has no references.source entries - every node needs at least one`)
+    }
   }
 
   for (const edge of edges) {
@@ -225,18 +237,33 @@ function checkStructure() {
   }
 }
 
+function wantedSourcePaths(): string[] {
+  const paths: string[] = []
+  for (const node of nodes) {
+    for (const link of node.references.source) {
+      const path = sourcePath(link.url)
+      if (!path) {
+        fail(`node "${node.id}" has a references.source URL that isn't a ${REPO}@${REF} blob/tree link: ${link.url}`)
+        continue
+      }
+      paths.push(path)
+    }
+  }
+  return [...new Set(paths)]
+}
+
 async function checkPaths(source: Source, paths: Set<string> | null) {
-  const wanted = [...new Set(nodes.map((n) => n.githubPath))]
+  const wanted = wantedSourcePaths()
   if (paths) {
     for (const path of wanted) {
-      if (!paths.has(path)) fail(`githubPath does not exist on ${REF}: ${path}`)
+      if (!paths.has(path)) fail(`references.source path does not exist on ${REF}: ${path}`)
     }
     return
   }
   console.log('The tree listing came back truncated - falling back to per-path lookups.')
   const results = await Promise.all(wanted.map(async (p) => [p, await source.pathExists(p)] as const))
   for (const [path, exists] of results) {
-    if (!exists) fail(`githubPath does not exist on ${REF}: ${path}`)
+    if (!exists) fail(`references.source path does not exist on ${REF}: ${path}`)
   }
 }
 
@@ -280,9 +307,6 @@ const { source, paths } = await pickSource()
 console.log(`Validating ${nodes.length} nodes against ${source.describe}`)
 await checkPaths(source, paths)
 await checkCodeRefs(source)
-
-const reviewCount = nodes.filter((n) => n.needsReview).length
-console.log(`Nodes still awaiting a subsystem-expert review: ${reviewCount}/${nodes.length}`)
 
 if (problems.length > 0) {
   console.error(`\n${problems.length} problem(s) found:`)
