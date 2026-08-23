@@ -1,6 +1,7 @@
 import { Suspense, lazy } from 'react'
-import { getChildren, getNode } from '../data/architecture'
+import { getNode } from '../data/architecture'
 import { CATEGORY_COLORS, CATEGORY_LABELS } from '../lib/categoryColors'
+import { highlightTerms } from '../lib/highlightTerms'
 import type { Theme } from '../lib/theme'
 
 // The syntax highlighter is by far the heaviest dependency here and is only
@@ -10,18 +11,12 @@ const CodePreview = lazy(() => import('./CodePreview'))
 interface NodeDetailPanelProps {
   nodeId: string
   theme: Theme
-  /** True while this node's children are currently expanded/drilled into in the graph view. */
-  isExpanded: boolean
   onClose: () => void
-  onDrillInto: (id: string) => void
-  onSelectNode: (id: string) => void
 }
 
-export default function NodeDetailPanel({ nodeId, theme, isExpanded, onClose, onDrillInto, onSelectNode }: NodeDetailPanelProps) {
+export default function NodeDetailPanel({ nodeId, theme, onClose }: NodeDetailPanelProps) {
   const node = getNode(nodeId)
   if (!node) return null
-
-  const children = getChildren(node.id)
 
   return (
     <aside className="detail-panel">
@@ -34,8 +29,8 @@ export default function NodeDetailPanel({ nodeId, theme, isExpanded, onClose, on
       </div>
       <h2>{node.label}</h2>
 
-      <p className="detail-panel__summary">{node.summary}</p>
-      {node.description && <p className="detail-panel__description">{node.description}</p>}
+      <p className="detail-panel__summary">{highlightTerms(node.summary)}</p>
+      {node.description && <p className="detail-panel__description">{highlightTerms(node.description)}</p>}
 
       <div className="detail-panel__section detail-panel__references">
         <h3>References</h3>
@@ -79,22 +74,6 @@ export default function NodeDetailPanel({ nodeId, theme, isExpanded, onClose, on
           <Suspense fallback={<div className="code-preview code-preview--loading">Loading preview…</div>}>
             <CodePreview codeRef={node.codeRef} theme={theme} />
           </Suspense>
-        </div>
-      )}
-
-      {children.length > 0 && (
-        <div className="detail-panel__section">
-          <h3>Structure ({children.length})</h3>
-          <ul className="detail-panel__children">
-            {children.map((child) => (
-              <li key={child.id}>
-                <button onClick={() => onSelectNode(child.id)}>{child.label}</button>
-              </li>
-            ))}
-          </ul>
-          <button className="detail-panel__expand-button" onClick={() => onDrillInto(node.id)}>
-            {isExpanded ? 'Collapse on map ↑' : 'Show structure on map ↴'}
-          </button>
         </div>
       )}
     </aside>

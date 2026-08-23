@@ -510,6 +510,18 @@
   margin-bottom: 14px;
 }
 
+/* Class/type names, protocol acronyms, and domain jargon (etag, Voron, ...)
+   picked out of prose by src/lib/highlightTerms.tsx. */
+.inline-code {
+  font-family: ui-monospace, 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 0.92em;
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 4px;
+  padding: 0 5px;
+  color: var(--color-text);
+}
+
 .detail-panel__links {
   display: flex;
   flex-direction: column;
@@ -555,42 +567,6 @@
   letter-spacing: 0.04em;
   color: var(--color-text-muted);
   margin: 0 0 8px;
-}
-
-.detail-panel__children {
-  list-style: none;
-  margin: 0 0 10px;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.detail-panel__children button {
-  width: 100%;
-  text-align: left;
-  padding: 6px 8px;
-  border: 1px solid var(--color-border);
-  background: var(--color-surface-alt);
-  border-radius: 6px;
-  font-size: 12.5px;
-  cursor: pointer;
-  color: var(--color-text);
-}
-
-.detail-panel__children button:hover {
-  background: var(--color-border);
-}
-
-.detail-panel__expand-button {
-  width: 100%;
-  padding: 8px;
-  border: none;
-  border-radius: 6px;
-  background: #192c45;
-  color: #fff;
-  font-size: 12.5px;
-  cursor: pointer;
 }
 
 /* Code preview */

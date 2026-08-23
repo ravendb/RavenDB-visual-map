@@ -139,14 +139,7 @@ export default function App() {
           />
         </ReactFlowProvider>
         {selectedNodeId ? (
-          <NodeDetailPanel
-            nodeId={selectedNodeId}
-            theme={theme}
-            isExpanded={expandedNodeId === selectedNodeId}
-            onClose={() => setSelectedNodeId(null)}
-            onDrillInto={handleToggleExpand}
-            onSelectNode={handleSelectNode}
-          />
+          <NodeDetailPanel nodeId={selectedNodeId} theme={theme} onClose={() => setSelectedNodeId(null)} />
         ) : (
           flow.activeFlowId && (
             <FlowPanel
