@@ -1,34 +1,27 @@
-import { Suspense, lazy, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ReactFlowProvider } from '@xyflow/react'
 import GraphView from './components/GraphView'
-import type { GraphView3DHandle } from './components/GraphView3D'
 import NodeDetailPanel from './components/NodeDetailPanel'
 import Toolbar from './components/Toolbar'
-import FlowBanner from './components/FlowBanner'
-import { getNode } from './data/architecture'
+import FlowPanel from './components/FlowPanel'
+import { getChildren, getNode } from './data/architecture'
 import { useTheme } from './lib/theme'
 import { useFlowPlayback } from './lib/useFlowPlayback'
+import { buildUrlHash, parseUrlHash, type MapUrlState } from './lib/urlState'
 import './App.css'
-
-// The 3D scene is a whole second renderer and most visitors never leave 2D, so
-// it is only fetched once the 3D toggle is actually used.
-const GraphView3D = lazy(() => import('./components/GraphView3D'))
-
-export type ViewMode = '2d' | '3d'
 
 export default function App() {
   const [theme, setTheme] = useTheme()
-  const [viewMode, setViewMode] = useState<ViewMode>('2d')
-  // The 3D view still drills into a dedicated children-only scene; the 2D view
-  // instead expands a node's children in place on the map (see GraphView), so
-  // each view mode needs its own idea of "what's currently open".
-  const [parentId3D, setParentId3D] = useState<string | null>(null)
   const [expandedNodeId, setExpandedNodeId] = useState<string | null>(null)
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [highlightedNodeId, setHighlightedNodeId] = useState<string | null>(null)
   const exportTargetRef = useRef<HTMLDivElement | null>(null)
-  const graph3DRef = useRef<GraphView3DHandle | null>(null)
   const flow = useFlowPlayback()
+  // The very first URL-sync pass runs in the same commit as the restore
+  // effect below, before its setState calls have taken effect - writing the
+  // URL there would flash it back to blank right after a deep link loaded.
+  // Skip that one pass; the restore's own state update triggers a real one.
+  const skipNextUrlWriteRef = useRef(true)
 
   function focus(nodeId: string) {
     setSelectedNodeId(nodeId)
@@ -38,15 +31,8 @@ export default function App() {
   function handleSelectNode(nodeId: string) {
     const node = getNode(nodeId)
     if (!node) return
-    if (viewMode === '3d') {
-      // If the node lives in a different scene than the one currently open
-      // (e.g. jumped to via search), switch to that scene first.
-      const targetParent = node.parentId ?? null
-      if (targetParent !== parentId3D) setParentId3D(targetParent)
-    } else if (node.parentId) {
-      // A child only renders once its parent is expanded in place on the map.
-      setExpandedNodeId(node.parentId)
-    }
+    // A child only renders once its parent is expanded in place on the map.
+    if (node.parentId) setExpandedNodeId(node.parentId)
     focus(nodeId)
   }
 
@@ -55,29 +41,71 @@ export default function App() {
     // with the expand/dim treatment, so opening or closing either kind of
     // drill-down stops whatever flow was playing.
     if (flow.activeFlowId) flow.stopFlow()
-    if (viewMode === '3d') {
-      setParentId3D(nodeId)
-      setSelectedNodeId(null)
-      return
-    }
     setExpandedNodeId((prev) => (prev === nodeId ? null : nodeId))
   }
 
   function handleBackToMacro() {
-    if (viewMode === '3d') setParentId3D(null)
-    else setExpandedNodeId(null)
+    setExpandedNodeId(null)
     setSelectedNodeId(null)
   }
 
   function handleStartFlow(id: string) {
-    setParentId3D(null)
     setExpandedNodeId(null)
     setSelectedNodeId(null)
     flow.startFlow(id)
   }
 
-  const breadcrumbLabel =
-    viewMode === '3d' ? (parentId3D ? getNode(parentId3D)?.label ?? null : null) : expandedNodeId ? getNode(expandedNodeId)?.label ?? null : null
+  // Reopens whatever a node-based deep link points at: a child node expands
+  // its parent and gets selected inside it; a macro node with children opens
+  // showing its subcards, same as clicking it does.
+  function openDeepLinkedNode(nodeId: string) {
+    const node = getNode(nodeId)
+    if (!node) return
+    setExpandedNodeId(node.parentId ?? (getChildren(nodeId).length > 0 ? nodeId : null))
+    focus(nodeId)
+  }
+
+  function applyUrlState(state: MapUrlState) {
+    setExpandedNodeId(null)
+    setSelectedNodeId(null)
+    if (state.flowId) {
+      flow.startFlow(state.flowId, Math.max((state.step ?? 1) - 1, 0))
+      return
+    }
+    if (flow.activeFlowId) flow.stopFlow()
+    if (state.nodeId) openDeepLinkedNode(state.nodeId)
+  }
+
+  useEffect(() => {
+    applyUrlState(parseUrlHash(window.location.hash))
+    // Restoring from whatever URL the page loaded with is a one-time,
+    // mount-only concern - re-running it on every state change would fight
+    // the write effect below instead of feeding it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    function onHashChange() {
+      applyUrlState(parseUrlHash(window.location.hash))
+    }
+    window.addEventListener('hashchange', onHashChange)
+    return () => window.removeEventListener('hashchange', onHashChange)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    if (skipNextUrlWriteRef.current) {
+      skipNextUrlWriteRef.current = false
+      return
+    }
+    const state: MapUrlState = flow.activeFlowId
+      ? { nodeId: null, flowId: flow.activeFlowId, step: flow.stepNumber }
+      : { nodeId: selectedNodeId, flowId: null, step: null }
+    const hash = buildUrlHash(state)
+    window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}${hash}`)
+  }, [selectedNodeId, flow.activeFlowId, flow.stepNumber])
+
+  const breadcrumbLabel = expandedNodeId ? getNode(expandedNodeId)?.label ?? null : null
 
   return (
     <div className="app">
@@ -86,71 +114,51 @@ export default function App() {
         onBackToMacro={handleBackToMacro}
         onJumpTo={handleSelectNode}
         exportTargetRef={exportTargetRef}
-        graph3DRef={graph3DRef}
         theme={theme}
         onToggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-        viewMode={viewMode}
-        onChangeViewMode={setViewMode}
         activeFlowId={flow.activeFlowId}
         onStartFlow={handleStartFlow}
         onStopFlow={flow.stopFlow}
       />
       <div className="app__body">
-        {viewMode === '2d' ? (
-          <ReactFlowProvider>
-            <GraphView
-              ref={exportTargetRef}
-              expandedNodeId={expandedNodeId}
-              selectedNodeId={selectedNodeId}
-              highlightedNodeId={highlightedNodeId}
-              theme={theme}
-              flowCurrentNodeId={flow.currentNodeId}
-              flowVisitedNodeIds={flow.visitedNodeIds}
-              flowVisitedEdgeIds={flow.visitedEdgeIds}
-              flowNodeIds={flow.flowNodeIds}
-              onSelectNode={handleSelectNode}
-              onToggleExpand={handleToggleExpand}
-            />
-          </ReactFlowProvider>
-        ) : (
-          <Suspense fallback={<div className="view-loading">Loading 3D view…</div>}>
-            <GraphView3D
-              ref={graph3DRef}
-              currentParentId={parentId3D}
-              selectedNodeId={selectedNodeId}
-              highlightedNodeId={highlightedNodeId}
-              theme={theme}
-              flowCurrentNodeId={flow.currentNodeId}
-              flowVisitedNodeIds={flow.visitedNodeIds}
-              flowVisitedEdgeIds={flow.visitedEdgeIds}
-              flowNodeIds={flow.flowNodeIds}
-              onSelectNode={handleSelectNode}
-              onDrillInto={handleToggleExpand}
-            />
-          </Suspense>
-        )}
-        {flow.activeFlowId && (
-          <FlowBanner
-            label={flow.activeFlowLabel ?? ''}
-            steps={flow.visitedSteps}
-            stepNumber={flow.stepNumber}
-            stepCount={flow.stepCount}
-            canGoPrev={!flow.isFirstStep}
-            canGoNext={!flow.isLastStep}
-            onPrev={flow.prevStep}
-            onNext={flow.nextStep}
-            onStop={flow.stopFlow}
+        <ReactFlowProvider>
+          <GraphView
+            ref={exportTargetRef}
+            expandedNodeId={expandedNodeId}
+            selectedNodeId={selectedNodeId}
+            highlightedNodeId={highlightedNodeId}
+            theme={theme}
+            flowCurrentNodeId={flow.currentNodeId}
+            flowVisitedNodeIds={flow.visitedNodeIds}
+            flowVisitedEdgeIds={flow.visitedEdgeIds}
+            flowNodeIds={flow.flowNodeIds}
+            onSelectNode={handleSelectNode}
+            onToggleExpand={handleToggleExpand}
           />
-        )}
-        {selectedNodeId && (
+        </ReactFlowProvider>
+        {selectedNodeId ? (
           <NodeDetailPanel
             nodeId={selectedNodeId}
             theme={theme}
-            isExpanded={viewMode === '2d' ? expandedNodeId === selectedNodeId : parentId3D === selectedNodeId}
+            isExpanded={expandedNodeId === selectedNodeId}
             onClose={() => setSelectedNodeId(null)}
             onDrillInto={handleToggleExpand}
             onSelectNode={handleSelectNode}
           />
+        ) : (
+          flow.activeFlowId && (
+            <FlowPanel
+              label={flow.activeFlowLabel ?? ''}
+              steps={flow.visitedSteps}
+              stepNumber={flow.stepNumber}
+              stepCount={flow.stepCount}
+              canGoPrev={!flow.isFirstStep}
+              canGoNext={!flow.isLastStep}
+              onPrev={flow.prevStep}
+              onNext={flow.nextStep}
+              onStop={flow.stopFlow}
+            />
+          )
         )}
       </div>
     </div>

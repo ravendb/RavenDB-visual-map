@@ -18,8 +18,7 @@ export interface NodeCardProps {
   children?: ReactNode
 }
 
-// The visual node card shared by the 2D (React Flow) and 3D views, so both
-// render the exact same tag/label/meta markup instead of drifting apart.
+// The visual node card used by the 2D (React Flow) graph view.
 export default function NodeCard({
   label,
   category,

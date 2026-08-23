@@ -22,7 +22,8 @@ export interface FlowPlaybackState {
   visitedEdgeIds: Set<string>
   /** Every node id the active flow touches at any step, regardless of how far playback has gotten - used to dim everything else on the map. */
   flowNodeIds: Set<string>
-  startFlow: (id: string) => void
+  /** stepIndex defaults to the first step; pass a 0-based index to jump straight into a flow (e.g. restoring a deep-linked step). */
+  startFlow: (id: string, stepIndex?: number) => void
   stopFlow: () => void
   nextStep: () => void
   prevStep: () => void
@@ -36,9 +37,10 @@ export function useFlowPlayback(): FlowPlaybackState {
   const isLastStep = !activeFlow || stepIndex >= activeFlow.steps.length - 1
   const isFirstStep = stepIndex <= 0
 
-  function startFlow(id: string) {
+  function startFlow(id: string, stepIndex = 0) {
+    const target = FLOWS.find((f) => f.id === id)
     setActiveFlowId(id)
-    setStepIndex(0)
+    setStepIndex(target ? Math.min(Math.max(stepIndex, 0), target.steps.length - 1) : 0)
   }
 
   function stopFlow() {

@@ -40,19 +40,25 @@ export default function NodeDetailPanel({ nodeId, theme, isExpanded, onClose, on
       <div className="detail-panel__section detail-panel__references">
         <h3>References</h3>
         <div className="detail-panel__links">
-          {node.references.source.map((link) => {
-            const label =
-              node.references.source.length === 1
-                ? node.label
-                : link.name.slice(link.name.lastIndexOf('/') + 1)
-            return (
-              <a key={link.url} className="detail-panel__github-link" href={link.url} target="_blank" rel="noreferrer">
-                Source: {label} on GitHub repository
-              </a>
-            )
-          })}
+          <p className="detail-panel__ref-line">
+            Source:{' '}
+            {node.references.source.map((link, i) => {
+              const label =
+                node.references.source.length === 1
+                  ? node.label
+                  : link.name.slice(link.name.lastIndexOf('/') + 1)
+              return (
+                <span key={link.url}>
+                  <a className="detail-panel__github-link" href={link.url} target="_blank" rel="noreferrer">
+                    {label} on GitHub
+                  </a>
+                  {i < node.references.source.length - 1 ? ', ' : ''}
+                </span>
+              )
+            })}
+          </p>
           {node.references.docs && node.references.docs.length > 0 && (
-            <p className="detail-panel__docs-line">
+            <p className="detail-panel__ref-line">
               Docs:{' '}
               {node.references.docs.map((link, i) => (
                 <span key={link.url}>

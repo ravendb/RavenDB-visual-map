@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import type { FlowStepView } from '../lib/useFlowPlayback'
 
-interface FlowBannerProps {
+interface FlowPanelProps {
   label: string
   steps: FlowStepView[]
   stepNumber: number
@@ -13,7 +13,7 @@ interface FlowBannerProps {
   onStop: () => void
 }
 
-export default function FlowBanner({
+export default function FlowPanel({
   label,
   steps,
   stepNumber,
@@ -23,7 +23,7 @@ export default function FlowBanner({
   onPrev,
   onNext,
   onStop,
-}: FlowBannerProps) {
+}: FlowPanelProps) {
   const currentRef = useRef<HTMLLIElement>(null)
 
   useEffect(() => {
@@ -31,34 +31,35 @@ export default function FlowBanner({
   }, [stepNumber])
 
   return (
-    <div className="flow-banner">
-      <div className="flow-banner__header">
-        <span className="flow-banner__label">{label}</span>
-        <span className="flow-banner__step">
-          Step {stepNumber} / {stepCount}
-        </span>
-        <button className="flow-banner__stop" onClick={onStop} aria-label="Stop flow playback" title="Stop">
-          ✕
-        </button>
-      </div>
-      <ol className="flow-banner__steps">
+    <aside className="detail-panel flow-panel">
+      <button className="detail-panel__close" onClick={onStop} aria-label="Stop flow playback" title="Stop">
+        ×
+      </button>
+
+      <h2>{label}</h2>
+      <p className="flow-panel__step-count">
+        Step {stepNumber} / {stepCount}
+      </p>
+
+      <ol className="flow-panel__steps">
         {steps.map((step, i) => {
           const isCurrent = i === steps.length - 1
           return (
             <li
               key={`${step.nodeId}-${i}`}
               ref={isCurrent ? currentRef : undefined}
-              className={isCurrent ? 'flow-banner__step-row flow-banner__step-row--current' : 'flow-banner__step-row'}
+              className={isCurrent ? 'flow-panel__step-row flow-panel__step-row--current' : 'flow-panel__step-row'}
             >
-              <span className="flow-banner__step-title">
+              <span className="flow-panel__step-title">
                 {i + 1}. {step.label}
               </span>
-              {isCurrent && <p className="flow-banner__step-note">{step.note}</p>}
+              {isCurrent && <p className="flow-panel__step-note">{step.note}</p>}
             </li>
           )
         })}
       </ol>
-      <div className="flow-banner__nav">
+
+      <div className="flow-panel__nav">
         <button onClick={onPrev} disabled={!canGoPrev}>
           ← Previous
         </button>
@@ -66,6 +67,6 @@ export default function FlowBanner({
           Next →
         </button>
       </div>
-    </div>
+    </aside>
   )
 }
