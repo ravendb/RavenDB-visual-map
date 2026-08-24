@@ -10,6 +10,9 @@
   --color-heading: #ffffff;
   --color-link: #1cc8ee;
   --color-accent: #388ee9;
+  --color-code-text: #c9a6ff;
+  --color-code-bg: rgba(167, 139, 250, 0.16);
+  --color-code-border: rgba(167, 139, 250, 0.35);
   --color-shadow: rgba(0, 0, 0, 0.45);
   --color-graph-dot: #262c47;
   --color-graph-edge: #4a5178;
@@ -29,6 +32,9 @@
   --color-heading: #0f1425;
   --color-link: #388ee9;
   --color-accent: #388ee9;
+  --color-code-text: #6d28d9;
+  --color-code-bg: rgba(109, 40, 217, 0.09);
+  --color-code-border: rgba(109, 40, 217, 0.25);
   --color-shadow: rgba(0, 0, 0, 0.12);
   --color-graph-dot: #e2e8f0;
   --color-graph-edge: #94a3b8;
@@ -234,8 +240,28 @@
 
 /* Expanded in place: children rendered on the map instead of a separate view. */
 .map-node--expanded {
+  position: relative;
   width: auto;
   box-shadow: 0 10px 28px var(--color-shadow);
+}
+
+.map-node__close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: none;
+  border: none;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.map-node__close:hover {
+  background: var(--color-border);
+  color: var(--color-text);
 }
 
 .map-node__children {
@@ -249,13 +275,17 @@
 }
 
 .map-node__child {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 3px;
   height: 100px;
   min-height: 0;
   padding: 7px 9px;
-  border: 1.5px solid #94a3b8;
+  /* Set as a custom property (rather than an inline border-color) so the
+     :hover rule below - which needs to win over the category color - can
+     override it through normal cascade instead of losing to inline style. */
+  border: 1.5px solid var(--child-border, #94a3b8);
   border-radius: 8px;
   background: var(--color-surface-alt);
   font-size: 11px;
@@ -268,6 +298,14 @@
   font-family: inherit;
   text-align: left;
   appearance: none;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+/* A visible cue that these tiles are clickable, distinct from --selected
+   (which marks the one already open in the detail panel). */
+.map-node__child:hover {
+  background: var(--color-border);
+  border-color: var(--color-accent);
 }
 
 .map-node__child:focus-visible {
@@ -294,15 +332,6 @@
   letter-spacing: 0.02em;
   padding: 1px 4px;
   border-radius: 3px;
-}
-
-.map-node__child-code {
-  margin-left: auto;
-  flex: 0 0 auto;
-  font-family: 'SF Mono', Consolas, monospace;
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--color-link);
 }
 
 .map-node__child-label {
@@ -388,6 +417,10 @@
   border-left: 3px solid #1cc8ee;
 }
 
+.flow-panel__selected-node {
+  position: relative;
+}
+
 .flow-panel__step-count {
   font-size: 12px;
   color: var(--color-text-muted);
@@ -429,13 +462,24 @@
   color: var(--color-text-muted);
 }
 
-.flow-panel__nav {
+.flow-nav-bar {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
   display: flex;
   gap: 8px;
-  margin-top: 14px;
+  background: var(--color-surface);
+  border: 1px solid #1cc8ee;
+  border-radius: 8px;
+  padding: 10px 14px;
+  width: 320px;
+  max-width: calc(100% - 32px);
+  box-shadow: 0 8px 24px var(--color-shadow);
 }
 
-.flow-panel__nav button {
+.flow-nav-bar button {
   flex: 1;
   background: #192c45;
   color: #f7f5fa;
@@ -446,11 +490,11 @@
   cursor: pointer;
 }
 
-.flow-panel__nav button:hover:not(:disabled) {
+.flow-nav-bar button:hover:not(:disabled) {
   background: #37507a;
 }
 
-.flow-panel__nav button:disabled {
+.flow-nav-bar button:disabled {
   opacity: 0.4;
   cursor: default;
 }
@@ -515,11 +559,11 @@
 .inline-code {
   font-family: ui-monospace, 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
   font-size: 0.92em;
-  background: var(--color-surface-alt);
-  border: 1px solid var(--color-border-subtle);
+  background: var(--color-code-bg);
+  border: 1px solid var(--color-code-border);
   border-radius: 4px;
   padding: 0 5px;
-  color: var(--color-text);
+  color: var(--color-code-text);
 }
 
 .detail-panel__links {

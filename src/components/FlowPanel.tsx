@@ -1,4 +1,7 @@
 import { useEffect, useRef } from 'react'
+import NodeDetailContent from './NodeDetailContent'
+import { highlightTerms } from '../lib/highlightTerms'
+import type { Theme } from '../lib/theme'
 import type { FlowStepView } from '../lib/useFlowPlayback'
 
 interface FlowPanelProps {
@@ -6,11 +9,10 @@ interface FlowPanelProps {
   steps: FlowStepView[]
   stepNumber: number
   stepCount: number
-  canGoPrev: boolean
-  canGoNext: boolean
-  onPrev: () => void
-  onNext: () => void
   onStop: () => void
+  theme: Theme
+  selectedNodeId: string | null
+  onCloseSelectedNode: () => void
 }
 
 export default function FlowPanel({
@@ -18,11 +20,10 @@ export default function FlowPanel({
   steps,
   stepNumber,
   stepCount,
-  canGoPrev,
-  canGoNext,
-  onPrev,
-  onNext,
   onStop,
+  theme,
+  selectedNodeId,
+  onCloseSelectedNode,
 }: FlowPanelProps) {
   const currentRef = useRef<HTMLLIElement>(null)
 
@@ -53,20 +54,20 @@ export default function FlowPanel({
               <span className="flow-panel__step-title">
                 {i + 1}. {step.label}
               </span>
-              {isCurrent && <p className="flow-panel__step-note">{step.note}</p>}
+              <p className="flow-panel__step-note">{highlightTerms(step.note)}</p>
             </li>
           )
         })}
       </ol>
 
-      <div className="flow-panel__nav">
-        <button onClick={onPrev} disabled={!canGoPrev}>
-          ← Previous
-        </button>
-        <button onClick={onNext} disabled={!canGoNext}>
-          Next →
-        </button>
-      </div>
+      {selectedNodeId && (
+        <div className="flow-panel__selected-node detail-panel__section">
+          <button className="detail-panel__close" onClick={onCloseSelectedNode} aria-label="Close">
+            ×
+          </button>
+          <NodeDetailContent nodeId={selectedNodeId} theme={theme} />
+        </div>
+      )}
     </aside>
   )
 }

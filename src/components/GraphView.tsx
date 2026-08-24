@@ -159,8 +159,8 @@ function buildFlowElements(
     return undefined
   }
   // While a flow is playing (and nothing is expanded - the two treatments
-  // never overlap, see handleToggleExpand), everything the flow doesn't touch
-  // fades into the background, like the expand spotlight above.
+  // never overlap, see the flow guard in onNodeClick below), everything the
+  // flow doesn't touch fades into the background, like the expand spotlight above.
   const isFlowActive = Boolean(flowCurrentNodeId) && !expandedNodeId
 
   const macro = allNodes.filter((n) => !n.parentId)
@@ -198,7 +198,6 @@ function buildFlowElements(
               label: c.label,
               category: c.category,
               summary: c.summary,
-              hasCodeRef: Boolean(c.codeRef),
             }))
           : undefined,
       },
@@ -357,6 +356,13 @@ const GraphView = forwardRef<HTMLDivElement, GraphViewProps>(function GraphView(
         edges={flowEdges}
         nodeTypes={nodeTypes}
         onNodeClick={(event, node) => {
+          // The parent card and every child tile carry their own close (x) -
+          // clicking any of them collapses this node's expanded view, same as
+          // clicking the pane background does.
+          if ((event.target as HTMLElement).closest('[data-node-close]')) {
+            onToggleExpand(node.id)
+            return
+          }
           // Children render as plain DOM inside their expanded parent's node
           // rather than as React Flow nodes of their own, so a click on one is
           // only distinguishable by looking at what was actually clicked.
@@ -368,8 +374,11 @@ const GraphView = forwardRef<HTMLDivElement, GraphViewProps>(function GraphView(
           onSelectNode(node.id)
           // One click both opens the detail panel and expands children in
           // place, right on the tile that was clicked - clicking it again (or
-          // any other expandable tile) collapses it.
-          if (getChildren(node.id).length > 0) onToggleExpand(node.id)
+          // any other expandable tile) collapses it. Not while a flow is
+          // playing though - the expand/dim treatment competes visually with
+          // the flow's own dimming, and every tile should stay clickable for
+          // its detail without knocking the flow off track.
+          if (getChildren(node.id).length > 0 && !flowCurrentNodeId) onToggleExpand(node.id)
         }}
         onPaneClick={() => {
           if (expandedNodeId) onToggleExpand(expandedNodeId)

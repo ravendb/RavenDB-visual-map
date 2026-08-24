@@ -4,6 +4,7 @@ import GraphView from './components/GraphView'
 import NodeDetailPanel from './components/NodeDetailPanel'
 import Toolbar from './components/Toolbar'
 import FlowPanel from './components/FlowPanel'
+import FlowNavBar from './components/FlowNavBar'
 import { getChildren, getNode } from './data/architecture'
 import { useTheme } from './lib/theme'
 import { useFlowPlayback } from './lib/useFlowPlayback'
@@ -37,10 +38,6 @@ export default function App() {
   }
 
   function handleToggleExpand(nodeId: string) {
-    // Flows only cover macro nodes and macro-level edges, and compete visually
-    // with the expand/dim treatment, so opening or closing either kind of
-    // drill-down stops whatever flow was playing.
-    if (flow.activeFlowId) flow.stopFlow()
     setExpandedNodeId((prev) => (prev === nodeId ? null : nodeId))
   }
 
@@ -138,22 +135,27 @@ export default function App() {
             onToggleExpand={handleToggleExpand}
           />
         </ReactFlowProvider>
-        {selectedNodeId ? (
-          <NodeDetailPanel nodeId={selectedNodeId} theme={theme} onClose={() => setSelectedNodeId(null)} />
+        {flow.activeFlowId ? (
+          <FlowPanel
+            label={flow.activeFlowLabel ?? ''}
+            steps={flow.visitedSteps}
+            stepNumber={flow.stepNumber}
+            stepCount={flow.stepCount}
+            onStop={flow.stopFlow}
+            theme={theme}
+            selectedNodeId={selectedNodeId}
+            onCloseSelectedNode={() => setSelectedNodeId(null)}
+          />
         ) : (
-          flow.activeFlowId && (
-            <FlowPanel
-              label={flow.activeFlowLabel ?? ''}
-              steps={flow.visitedSteps}
-              stepNumber={flow.stepNumber}
-              stepCount={flow.stepCount}
-              canGoPrev={!flow.isFirstStep}
-              canGoNext={!flow.isLastStep}
-              onPrev={flow.prevStep}
-              onNext={flow.nextStep}
-              onStop={flow.stopFlow}
-            />
-          )
+          selectedNodeId && <NodeDetailPanel nodeId={selectedNodeId} theme={theme} onClose={() => setSelectedNodeId(null)} />
+        )}
+        {flow.activeFlowId && (
+          <FlowNavBar
+            canGoPrev={!flow.isFirstStep}
+            canGoNext={!flow.isLastStep}
+            onPrev={flow.prevStep}
+            onNext={flow.nextStep}
+          />
         )}
       </div>
     </div>
