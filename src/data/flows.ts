@@ -93,7 +93,7 @@ export const FLOWS: Flow[] = [
     description: 'How ongoing changes reach an external database or queue via ETL.',
     steps: [
       { nodeId: 'documents-core', note: 'A document change is raised on the internal change feed.' },
-      { nodeId: 'integrations', note: 'The matching ETL process transforms it and streams it out to the destination system.' },
+      { nodeId: 'etl', note: 'The matching ETL process transforms it and streams it out to the destination system.' },
     ],
   },
   {

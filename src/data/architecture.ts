@@ -131,7 +131,7 @@ export const nodes: MapNode[] = [
     category: 'server',
     summary: 'The core per-database engine: documents, revisions, counters, time series, conflicts, subscriptions, queries, patching.',
     description:
-      'DocumentsStorage and its siblings (CountersStorage, ConflictsStorage, RevisionsStorage, TimeSeriesStorage, ...) sit on top of a Voron storage environment and are what most database operations ultimately touch. Writes do not each open their own Voron write transaction: they are queued through the TransactionMerger, which batches many operations into one transaction - the mechanism the documentation credits for RavenDB\'s write throughput on top of Voron\'s single-writer model.',
+      'DocumentsStorage and its siblings (CountersStorage, ConflictsStorage, RevisionsStorage, TimeSeriesStorage, ...) sit on top of a Voron storage environment and are what most database operations ultimately touch. Writes do not each open their own Voron write transaction: they are queued through the TransactionMerger, which batches many operations into one transaction - the mechanism the documentation credits for RavenDB\'s write throughput on top of Voron\'s single-writer model. Every write is stamped with a new change vector here, in DocumentsStorage itself, independent of whether replication is even configured - it is the general-purpose causality/versioning primitive the rest of the server builds on: RevisionsStorage keys each revision by it, Subscriptions and ETL use it as their resume checkpoint, and PeriodicBackup compares it to the last backup\'s to decide whether an incremental run has anything new to write.',
     references: {
       docs: [
         { name: 'Documents and Collections', url: 'https://docs.ravendb.net/7.2/studio/database/documents/documents-and-collections' },
@@ -288,19 +288,53 @@ export const nodes: MapNode[] = [
     },
   },
   {
-    id: 'integrations',
-    label: 'ETL & Integrations',
+    id: 'etl',
+    label: 'ETL',
     category: 'integration',
-    summary: 'Moving data in and out of RavenDB: ETL to other systems, queue sinks, bulk import/export, SQL migration, PostgreSQL wire protocol.',
+    summary: 'Outgoing data movement: transforms document changes and streams them out to external systems as they happen.',
     description:
-      'EtlLoader runs the outgoing ETL processes (Providers covers RavenDB, SQL, OLAP, Elasticsearch, AI embeddings generation, and queue destinations such as Kafka and RabbitMQ), while QueueSink is the inbound direction: consuming messages from a queue into documents. Alongside them sit Smuggler (bulk import/export, plus sharding-aware companions), SqlMigration (pulling data in from an existing SQL database) and Integrations/PostgreSQL (letting Postgres-wire clients query RavenDB).',
+      'EtlLoader runs the outgoing ETL processes configured on a database; Providers covers one implementation per destination - RavenDB, SQL, OLAP, Elasticsearch, AI embeddings generation, and queue destinations such as Kafka and RabbitMQ.',
     references: {
       docs: [
-        { name: 'ETL & Integrations', url: 'https://docs.ravendb.net/7.2/server/ongoing-tasks/etl/basics' },
-        { name: 'What is Smuggler', url: 'https://docs.ravendb.net/7.2/client-api/smuggler/what-is-smuggler' },
-        { name: 'PostgreSQL Protocol: Overview', url: 'https://docs.ravendb.net/7.2/integrations/postgresql-protocol/overview' },
+        { name: 'Ongoing Tasks: ETL Basics', url: 'https://docs.ravendb.net/7.2/server/ongoing-tasks/etl/basics' },
+        { name: 'Ongoing Tasks: RavenDB ETL', url: 'https://docs.ravendb.net/7.2/server/ongoing-tasks/etl/raven' },
+        { name: 'Ongoing Tasks: SQL ETL', url: 'https://docs.ravendb.net/7.2/server/ongoing-tasks/etl/sql/' },
       ],
       source: [{ name: 'src/Raven.Server/Documents/ETL', url: githubTreeUrl('src/Raven.Server/Documents/ETL') }],
+    },
+  },
+  {
+    id: 'sinks',
+    label: 'Sinks',
+    category: 'integration',
+    summary: 'Incoming data movement: consumes an external stream - a message queue or a database\'s change-data-capture feed - into documents.',
+    description:
+      'QueueSink consumes Kafka/RabbitMQ messages into documents; CdcSink ingests change-data-capture streams from an external relational database (PostgreSQL, SQL Server, MySQL). Both mirror EtlLoader\'s shape almost exactly - one process per configured source - just running the data transfer in the opposite direction.',
+    references: {
+      docs: [
+        { name: 'Queue Sink: Apache Kafka', url: 'https://docs.ravendb.net/7.2/server/ongoing-tasks/queue-sink/kafka-queue-sink' },
+        { name: 'CDC Sink: Overview', url: 'https://docs.ravendb.net/7.2/server/ongoing-tasks/cdc-sink/overview' },
+      ],
+      source: [
+        { name: 'src/Raven.Server/Documents/QueueSink', url: githubTreeUrl('src/Raven.Server/Documents/QueueSink') },
+        { name: 'src/Raven.Server/Documents/CdcSink', url: githubTreeUrl('src/Raven.Server/Documents/CdcSink') },
+      ],
+    },
+  },
+  {
+    id: 'integrations',
+    label: 'Integrations',
+    category: 'integration',
+    summary: 'Bulk import/export, one-time SQL migration, and the PostgreSQL wire protocol - each a different way of moving data in or out, or letting other tools query RavenDB directly.',
+    description:
+      'Smuggler is RavenDB\'s bulk import/export format, with sharding-aware companions; SqlMigration is a one-time pull from an existing relational database into documents; Integrations/PostgreSQL lets Postgres-wire clients (BI tools, pgAdmin) query RavenDB directly - independent of both the ETL and Sinks ongoing tasks.',
+    references: {
+      docs: [
+        { name: 'What is Smuggler', url: 'https://docs.ravendb.net/7.2/client-api/smuggler/what-is-smuggler' },
+        { name: 'Import from SQL', url: 'https://docs.ravendb.net/7.2/studio/database/tasks/import-data/import-from-sql/' },
+        { name: 'PostgreSQL Protocol: Overview', url: 'https://docs.ravendb.net/7.2/integrations/postgresql-protocol/overview' },
+      ],
+      source: [{ name: 'src/Raven.Server/Smuggler', url: githubTreeUrl('src/Raven.Server/Smuggler') }],
     },
   },
   {
@@ -1219,7 +1253,7 @@ export const nodes: MapNode[] = [
     label: 'Change vectors',
     category: 'cluster',
     summary:
-      'The per-node etag vector that decides newer / older / conflict for every replicated item. Most entries carry a node tag encoded in base-26 (A-Z, then AA, AB, ...); four special tags - RAFT, TRXN, SINK and MOVE - are recognized as literal string constants instead, ahead of the numeric etag that follows.',
+      'The per-node etag vector stamped on every write in DocumentsStorage, not something replication adds on top - replication (and Subscriptions, ETL, PeriodicBackup, RevisionsStorage) just reads the one already there to decide newer / older / conflict. Most entries carry a node tag encoded in base-26 (A-Z, then AA, AB, ...); four special tags - RAFT, TRXN, SINK and MOVE - are recognized as literal string constants instead, ahead of the numeric etag that follows.',
     references: {
       docs: [
         { name: 'Change Vectors', url: 'https://docs.ravendb.net/7.2/server/clustering/replication/change-vector' },
@@ -1441,7 +1475,7 @@ export const nodes: MapNode[] = [
   },
 
   // ---------------------------------------------------------------------
-  // Micro nodes: ETL & Integrations
+  // Micro nodes: ETL, Sinks, Integrations
   // ---------------------------------------------------------------------
   {
     id: 'etl-loader',
@@ -1462,7 +1496,7 @@ export const nodes: MapNode[] = [
       startLine: 42,
       expectSymbol: 'class EtlLoader',
     },
-    parentId: 'integrations',
+    parentId: 'etl',
   },
   {
     id: 'etl-providers',
@@ -1483,7 +1517,7 @@ export const nodes: MapNode[] = [
       startLine: 23,
       expectSymbol: 'class RavenEtl',
     },
-    parentId: 'integrations',
+    parentId: 'etl',
   },
   {
     id: 'queue-sink',
@@ -1503,7 +1537,7 @@ export const nodes: MapNode[] = [
       startLine: 21,
       expectSymbol: 'class QueueSinkLoader',
     },
-    parentId: 'integrations',
+    parentId: 'sinks',
   },
   {
     id: 'smuggler',
@@ -1580,7 +1614,7 @@ export const nodes: MapNode[] = [
       startLine: 17,
       expectSymbol: 'class CdcSinkLoader',
     },
-    parentId: 'integrations',
+    parentId: 'sinks',
   },
 ]
 
@@ -1601,7 +1635,9 @@ export const edges: MapEdge[] = [
   { id: 'engines-storage', source: 'search-engines', target: 'storage', label: 'persists via' },
   { id: 'attachments-storage-edge', source: 'attachments', target: 'storage', label: 'persists via' },
   { id: 'cluster-storage', source: 'cluster', target: 'storage', label: 'ACID Raft log' },
-  { id: 'documents-integrations', source: 'documents-core', target: 'integrations', label: 'change feed' },
+  { id: 'documents-etl', source: 'documents-core', target: 'etl', label: 'change feed' },
+  { id: 'sinks-documents', source: 'sinks', target: 'documents-core', label: 'writes documents' },
+  { id: 'documents-integrations', source: 'documents-core', target: 'integrations', label: 'bulk ops & migration' },
   { id: 'documents-replication', source: 'documents-core', target: 'replication', label: 'change feed' },
   { id: 'documents-backup', source: 'documents-core', target: 'backup', label: 'ongoing task' },
   { id: 'documents-cluster', source: 'documents-core', target: 'cluster', label: 'cluster-wide ops' },
