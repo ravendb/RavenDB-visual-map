@@ -416,7 +416,7 @@ export const nodes: MapNode[] = [
     label: 'Revisions',
     category: 'server',
     summary:
-      'Versioning: keeps previous versions of a document according to the revisions configuration. RevisionsStorage keeps a plain and a compressed Voron table side by side, and rejects any single revision larger than SizeLimitInBytes (32MB by default, 2MB on 32-bit builds, not currently configurable).',
+      'Versioning: keeps previous versions of a document according to the revisions configuration. RevisionsStorage keeps a plain and a compressed Voron table side by side, and rejects any single revision larger than SizeLimitInBytes (32MB by default, 2MB on 32-bit builds, not currently configurable). Each stored revision is keyed by the change vector the document had at that point, not by a timestamp or sequence number.',
     references: {
       docs: [
         { name: 'Revisions', url: 'https://docs.ravendb.net/7.2/document-extensions/revisions/overview' },
@@ -476,7 +476,7 @@ export const nodes: MapNode[] = [
     label: 'Data Subscriptions',
     category: 'server',
     summary:
-      'Server-side, resumable push of matching documents to a worker over a long-lived TCP connection. MaxNumberOfConcurrentConnections is a single database-wide cap (default 1000) shared across every subscription, not a per-subscription limit; SubscriptionStorage raises events as connections open, end, or a batch completes.',
+      'Server-side, resumable push of matching documents to a worker over a long-lived TCP connection. MaxNumberOfConcurrentConnections is a single database-wide cap (default 1000) shared across every subscription, not a per-subscription limit; SubscriptionStorage raises events as connections open, end, or a batch completes. "Resumable" is change-vector-backed: each acknowledged batch records the change vector it ended on, which is what a worker reconnects from instead of replaying everything.',
     references: {
       docs: [
         { name: 'Data Subscriptions', url: 'https://docs.ravendb.net/7.2/client-api/data-subscriptions/what-are-data-subscriptions' },
