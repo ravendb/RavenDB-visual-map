@@ -1,5 +1,7 @@
 import { useEffect, useRef } from 'react'
+import NodeDetailContent from './NodeDetailContent'
 import { highlightTerms } from '../lib/highlightTerms'
+import type { Theme } from '../lib/theme'
 import type { FlowStepView } from '../lib/useFlowPlayback'
 
 interface FlowPanelProps {
@@ -8,9 +10,21 @@ interface FlowPanelProps {
   stepNumber: number
   stepCount: number
   onStop: () => void
+  theme: Theme
+  selectedNodeId: string | null
+  onCloseSelectedNode: () => void
 }
 
-export default function FlowPanel({ label, steps, stepNumber, stepCount, onStop }: FlowPanelProps) {
+export default function FlowPanel({
+  label,
+  steps,
+  stepNumber,
+  stepCount,
+  onStop,
+  theme,
+  selectedNodeId,
+  onCloseSelectedNode,
+}: FlowPanelProps) {
   const currentRef = useRef<HTMLLIElement>(null)
 
   useEffect(() => {
@@ -45,6 +59,15 @@ export default function FlowPanel({ label, steps, stepNumber, stepCount, onStop 
           )
         })}
       </ol>
+
+      {selectedNodeId && (
+        <div className="flow-panel__selected-node detail-panel__section">
+          <button className="detail-panel__close" onClick={onCloseSelectedNode} aria-label="Close">
+            ×
+          </button>
+          <NodeDetailContent nodeId={selectedNodeId} theme={theme} />
+        </div>
+      )}
     </aside>
   )
 }

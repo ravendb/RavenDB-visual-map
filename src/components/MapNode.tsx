@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import { Handle, Position, type NodeProps } from '@xyflow/react'
 import NodeCard from './NodeCard'
 import { CATEGORY_COLORS, CATEGORY_LABELS } from '../lib/categoryColors'
@@ -19,8 +20,6 @@ export interface ChildSummary {
   label: string
   category: NodeCategory
   summary: string
-  /** Whether this child has an inline code preview available (a specific file/line, not just a folder). */
-  hasCodeRef?: boolean
 }
 
 export interface MapNodeData {
@@ -90,17 +89,12 @@ export default function MapNode({ data, selected }: NodeProps) {
                 type="button"
                 className={child.id === selectedChildId ? 'map-node__child map-node__child--selected' : 'map-node__child'}
                 data-child-id={child.id}
-                style={{ borderColor: CATEGORY_COLORS[child.category] }}
+                style={{ '--child-border': CATEGORY_COLORS[child.category] } as CSSProperties}
               >
                 <div className="map-node__child-head">
                   <span className="map-node__child-tag" style={{ background: CATEGORY_COLORS[child.category] }}>
                     {CATEGORY_LABELS[child.category]}
                   </span>
-                  {child.hasCodeRef && (
-                    <span className="map-node__child-code" title="Has an inline code preview">
-                      {'</>'}
-                    </span>
-                  )}
                 </div>
                 <span className="map-node__child-label">{child.label}</span>
                 <span className="map-node__child-summary">{highlightTerms(child.summary)}</span>

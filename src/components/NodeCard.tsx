@@ -46,6 +46,11 @@ export default function NodeCard({
       onClick={onClick}
       onDoubleClick={onDoubleClick}
     >
+      {expanded && (
+        <button type="button" className="map-node__close" data-node-close aria-label="Close and return to the map" title="Close">
+          ×
+        </button>
+      )}
       <div className="map-node__tag" style={{ background: color }}>
         {CATEGORY_LABELS[category]}
       </div>

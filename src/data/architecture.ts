@@ -499,27 +499,6 @@ export const nodes: MapNode[] = [
     },
     parentId: 'documents-core',
   },
-  {
-    id: 'core-handlers',
-    label: 'Handlers',
-    category: 'server',
-    summary:
-      'The HTTP handlers (and their sharded/non-sharded Processors) for every document-level endpoint. Each action is a thin [RavenAction]-attributed method that immediately delegates to a dedicated Processor class, e.g. DocumentHandlerProcessorForGet, which does the actual work.',
-    references: {
-      docs: [
-        { name: 'Introduction to the REST API', url: 'https://docs.ravendb.net/7.2/client-api/rest-api/rest-api-intro/' },
-        { name: 'Get Documents by ID', url: 'https://docs.ravendb.net/7.2/client-api/rest-api/document-commands/get-documents-by-id' },
-        { name: 'Query the Database (REST API)', url: 'https://docs.ravendb.net/7.2/client-api/rest-api/queries/query-the-database' },
-      ],
-      source: [{ name: 'src/Raven.Server/Documents/Handlers', url: githubTreeUrl('src/Raven.Server/Documents/Handlers') }],
-    },
-    codeRef: {
-      file: 'src/Raven.Server/Documents/Handlers/DocumentHandler.cs',
-      startLine: 16,
-      expectSymbol: 'class DocumentHandler',
-    },
-    parentId: 'documents-core',
-  },
 
   // ---------------------------------------------------------------------
   // Micro nodes: Storage Engine (Voron)
@@ -653,47 +632,6 @@ export const nodes: MapNode[] = [
     parentId: 'attachments',
   },
   {
-    id: 'attachments-handler',
-    label: 'AttachmentHandler',
-    category: 'server',
-    summary:
-      'The HTTP handler exposing attachment upload/download/delete endpoints. Its Head/Get/GetPost/bulk actions all just construct and run an AttachmentHandlerProcessorFor... class, the same delegation pattern DocumentHandler uses.',
-    references: {
-      docs: [
-        { name: 'Get Attachments', url: 'https://docs.ravendb.net/7.2/document-extensions/attachments/get-attachments' },
-        { name: 'Store Attachments Locally', url: 'https://docs.ravendb.net/7.2/document-extensions/attachments/store-attachments/store-attachments-local' },
-        { name: 'Delete Attachments', url: 'https://docs.ravendb.net/7.2/document-extensions/attachments/delete-attachment' },
-      ],
-      source: [{ name: 'src/Raven.Server/Documents/Handlers/AttachmentHandler.cs', url: githubBlobUrl('src/Raven.Server/Documents/Handlers/AttachmentHandler.cs') }],
-    },
-    codeRef: {
-      file: 'src/Raven.Server/Documents/Handlers/AttachmentHandler.cs',
-      startLine: 14,
-      expectSymbol: 'class AttachmentHandler',
-    },
-    parentId: 'attachments',
-  },
-  {
-    id: 'attachments-remote-handler',
-    label: 'RemoteAttachmentHandler',
-    category: 'server',
-    summary:
-      'The endpoint used for remote attachment configuration and cross-node fetch. It exposes only two admin actions - reading and writing the remote-attachments configuration - each delegating to its own Processor class.',
-    references: {
-      docs: [
-        { name: 'Configure Remote Attachments', url: 'https://docs.ravendb.net/7.2/document-extensions/attachments/configure-remote-attachments' },
-        { name: 'Store Attachments Remotely', url: 'https://docs.ravendb.net/7.2/document-extensions/attachments/store-attachments/store-attachments-remote' },
-      ],
-      source: [{ name: 'src/Raven.Server/Documents/Handlers/RemoteAttachmentHandler.cs', url: githubBlobUrl('src/Raven.Server/Documents/Handlers/RemoteAttachmentHandler.cs') }],
-    },
-    codeRef: {
-      file: 'src/Raven.Server/Documents/Handlers/RemoteAttachmentHandler.cs',
-      startLine: 7,
-      expectSymbol: 'class RemoteAttachmentHandler',
-    },
-    parentId: 'attachments',
-  },
-  {
     id: 'attachments-model',
     label: 'Attachment / Tombstone',
     category: 'server',
@@ -800,28 +738,6 @@ export const nodes: MapNode[] = [
     },
     parentId: 'sharding',
   },
-  {
-    id: 'sharding-handlers',
-    label: 'Handlers',
-    category: 'server',
-    summary:
-      'The sharded counterparts of the database HTTP handlers, sitting in front of the shards. ShardedDatabaseRequestHandler is the abstract base every Sharded*Handler derives from; it forwards a fixed set of headers, like the last-known cluster transaction index, onto each per-shard request it issues.',
-    references: {
-      docs: [
-        { name: 'Sharding Overview', url: 'https://docs.ravendb.net/7.2/sharding/overview' },
-        { name: 'Sharding: Querying', url: 'https://docs.ravendb.net/7.2/sharding/querying/' },
-        { name: 'Sharding: Import and Export', url: 'https://docs.ravendb.net/7.2/sharding/import-and-export' },
-      ],
-      source: [{ name: 'src/Raven.Server/Documents/Sharding/Handlers', url: githubTreeUrl('src/Raven.Server/Documents/Sharding/Handlers') }],
-    },
-    codeRef: {
-      file: 'src/Raven.Server/Documents/Sharding/Handlers/ShardedDatabaseRequestHandler.cs',
-      startLine: 24,
-      expectSymbol: 'class ShardedDatabaseRequestHandler',
-    },
-    parentId: 'sharding',
-  },
-
   // ---------------------------------------------------------------------
   // Micro nodes: Indexing
   // ---------------------------------------------------------------------

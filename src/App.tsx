@@ -38,10 +38,6 @@ export default function App() {
   }
 
   function handleToggleExpand(nodeId: string) {
-    // Flows only cover macro nodes and macro-level edges, and compete visually
-    // with the expand/dim treatment, so opening or closing either kind of
-    // drill-down stops whatever flow was playing.
-    if (flow.activeFlowId) flow.stopFlow()
     setExpandedNodeId((prev) => (prev === nodeId ? null : nodeId))
   }
 
@@ -139,18 +135,19 @@ export default function App() {
             onToggleExpand={handleToggleExpand}
           />
         </ReactFlowProvider>
-        {selectedNodeId ? (
-          <NodeDetailPanel nodeId={selectedNodeId} theme={theme} onClose={() => setSelectedNodeId(null)} />
+        {flow.activeFlowId ? (
+          <FlowPanel
+            label={flow.activeFlowLabel ?? ''}
+            steps={flow.visitedSteps}
+            stepNumber={flow.stepNumber}
+            stepCount={flow.stepCount}
+            onStop={flow.stopFlow}
+            theme={theme}
+            selectedNodeId={selectedNodeId}
+            onCloseSelectedNode={() => setSelectedNodeId(null)}
+          />
         ) : (
-          flow.activeFlowId && (
-            <FlowPanel
-              label={flow.activeFlowLabel ?? ''}
-              steps={flow.visitedSteps}
-              stepNumber={flow.stepNumber}
-              stepCount={flow.stepCount}
-              onStop={flow.stopFlow}
-            />
-          )
+          selectedNodeId && <NodeDetailPanel nodeId={selectedNodeId} theme={theme} onClose={() => setSelectedNodeId(null)} />
         )}
         {flow.activeFlowId && (
           <FlowNavBar
