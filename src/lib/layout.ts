@@ -20,7 +20,9 @@ export const MACRO_POSITIONS: Record<string, { x: number; y: number }> = {
   attachments: { x: 1220, y: 340 },
   sharding: { x: 0, y: 510 },
   'documents-core': { x: 600, y: 510 },
+  etl: { x: 1260, y: 510 },
   integrations: { x: 1560, y: 510 },
+  sinks: { x: 1860, y: 510 },
   // subsystems fed by the core
   ai: { x: 0, y: 700 },
   indexing: { x: 300, y: 700 },
