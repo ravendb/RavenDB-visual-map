@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { highlightTerms } from '../lib/highlightTerms'
 import type { FlowStepView } from '../lib/useFlowPlayback'
 
 interface FlowPanelProps {
@@ -6,24 +7,10 @@ interface FlowPanelProps {
   steps: FlowStepView[]
   stepNumber: number
   stepCount: number
-  canGoPrev: boolean
-  canGoNext: boolean
-  onPrev: () => void
-  onNext: () => void
   onStop: () => void
 }
 
-export default function FlowPanel({
-  label,
-  steps,
-  stepNumber,
-  stepCount,
-  canGoPrev,
-  canGoNext,
-  onPrev,
-  onNext,
-  onStop,
-}: FlowPanelProps) {
+export default function FlowPanel({ label, steps, stepNumber, stepCount, onStop }: FlowPanelProps) {
   const currentRef = useRef<HTMLLIElement>(null)
 
   useEffect(() => {
@@ -53,20 +40,11 @@ export default function FlowPanel({
               <span className="flow-panel__step-title">
                 {i + 1}. {step.label}
               </span>
-              {isCurrent && <p className="flow-panel__step-note">{step.note}</p>}
+              <p className="flow-panel__step-note">{highlightTerms(step.note)}</p>
             </li>
           )
         })}
       </ol>
-
-      <div className="flow-panel__nav">
-        <button onClick={onPrev} disabled={!canGoPrev}>
-          ← Previous
-        </button>
-        <button onClick={onNext} disabled={!canGoNext}>
-          Next →
-        </button>
-      </div>
     </aside>
   )
 }

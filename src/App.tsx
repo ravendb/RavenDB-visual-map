@@ -4,6 +4,7 @@ import GraphView from './components/GraphView'
 import NodeDetailPanel from './components/NodeDetailPanel'
 import Toolbar from './components/Toolbar'
 import FlowPanel from './components/FlowPanel'
+import FlowNavBar from './components/FlowNavBar'
 import { getChildren, getNode } from './data/architecture'
 import { useTheme } from './lib/theme'
 import { useFlowPlayback } from './lib/useFlowPlayback'
@@ -147,13 +148,17 @@ export default function App() {
               steps={flow.visitedSteps}
               stepNumber={flow.stepNumber}
               stepCount={flow.stepCount}
-              canGoPrev={!flow.isFirstStep}
-              canGoNext={!flow.isLastStep}
-              onPrev={flow.prevStep}
-              onNext={flow.nextStep}
               onStop={flow.stopFlow}
             />
           )
+        )}
+        {flow.activeFlowId && (
+          <FlowNavBar
+            canGoPrev={!flow.isFirstStep}
+            canGoNext={!flow.isLastStep}
+            onPrev={flow.prevStep}
+            onNext={flow.nextStep}
+          />
         )}
       </div>
     </div>

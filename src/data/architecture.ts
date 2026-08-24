@@ -167,7 +167,7 @@ export const nodes: MapNode[] = [
   },
   {
     id: 'indexing',
-    label: 'Indexing (Auto, Static, Map-Reduce)',
+    label: 'Indexing',
     category: 'indexing',
     summary: 'The server-side indexing subsystem: index definitions, the workers that keep indexes up to date, and the choice of search engine per index.',
     description:
@@ -188,7 +188,7 @@ export const nodes: MapNode[] = [
   },
   {
     id: 'search-engines',
-    label: 'Search Engines (Corax / Lucene)',
+    label: 'Search Engines',
     category: 'indexing',
     summary: 'The two interchangeable search engines an index can be built on: the in-house Corax and the older Lucene path.',
     description:
@@ -203,7 +203,7 @@ export const nodes: MapNode[] = [
   },
   {
     id: 'ai',
-    label: 'AI Integration & Vector Search',
+    label: 'AI & Vector Search',
     category: 'integration',
     summary: 'Embeddings generation, vector fields in indexes, and the chat/assistant integrations with external AI providers.',
     description:
@@ -526,7 +526,7 @@ export const nodes: MapNode[] = [
   // ---------------------------------------------------------------------
   {
     id: 'storage-impl',
-    label: 'Impl (pager, journal, trees)',
+    label: 'Pager & Journal',
     category: 'storage',
     summary:
       'The actual mechanics: paging, the write-ahead journal, scratch buffers and transactions. LowLevelTransaction is the class every read or write transaction ultimately runs on: it owns the data pager, tracks how many pages it modified, and hands off to the WriteAheadJournal on commit.',
@@ -633,7 +633,7 @@ export const nodes: MapNode[] = [
   },
   {
     id: 'attachments-remote-storage',
-    label: 'RemoteAttachmentsStorage / Sender',
+    label: 'Remote Attachments Storage',
     category: 'server',
     summary:
       'Fetches an attachment stream back from external cold storage (e.g. S3/Azure, after it was tiered out during a backup) on demand, instead of keeping every attachment resident locally forever. It derives from the same AbstractBackgroundWorkStorage used for document expiration, and walks each document\'s metadata to find attachments still flagged as remote rather than fetched.',
@@ -695,7 +695,7 @@ export const nodes: MapNode[] = [
   },
   {
     id: 'attachments-model',
-    label: 'Attachment / AttachmentOrTombstone',
+    label: 'Attachment / Tombstone',
     category: 'server',
     summary:
       'The in-memory model for an attachment record and its deletion marker (tombstone). The model is a flat set of fields (StorageId, Key, Etag, ChangeVector, content hash, size, stream) - RevisionVersion is only populated on the copy kept for a revision, not on the live document\'s.',
@@ -928,7 +928,7 @@ export const nodes: MapNode[] = [
   },
   {
     id: 'indexing-persistence',
-    label: 'Persistence (engine backends)',
+    label: 'Persistence',
     category: 'indexing',
     summary:
       'The seam between the indexing subsystem and a search engine - one implementation for Corax, one for Lucene. IndexPersistenceBase declares the abstract surface - opening writers and readers, cache publishing, cleanup - that both backends implement independently.',
@@ -993,7 +993,7 @@ export const nodes: MapNode[] = [
   },
   {
     id: 'corax-indexing',
-    label: 'Corax: Indexing (IndexWriter)',
+    label: 'Corax: Indexing',
     category: 'indexing',
     summary:
       'Builds and maintains the inverted index as entries are added, updated and deleted. It\'s explicitly single-threaded and caller-synchronized rather than internally locked, and keeps a separate fixed-size tree just to cache per-document boost values applied during indexing.',
@@ -1013,7 +1013,7 @@ export const nodes: MapNode[] = [
   },
   {
     id: 'corax-querying',
-    label: 'Corax: Querying (IndexSearcher)',
+    label: 'Corax: Querying',
     category: 'indexing',
     summary:
       'Executes queries against the inverted index and returns matching entries. IndexSearcher switches to a bitmap representation once a term\'s postings cross a 32MB threshold, trading memory for faster AND/OR set operations on very common terms.',
@@ -1094,7 +1094,7 @@ export const nodes: MapNode[] = [
   },
   {
     id: 'lucene-voron-directory',
-    label: 'Lucene: LuceneVoronDirectory',
+    label: 'Lucene: VoronDirectory',
     category: 'indexing',
     summary:
       'Lucene\'s Directory implemented on top of Voron, so Lucene indexes are stored transactionally too. LuceneVoronDirectory refuses to be constructed outside a write transaction, and tracks how many bytes of Lucene-managed native allocations are currently outstanding for the index.',
@@ -1176,7 +1176,7 @@ export const nodes: MapNode[] = [
   },
   {
     id: 'cluster-consensus',
-    label: 'RachisConsensus / StateMachine',
+    label: 'RachisConsensus',
     category: 'cluster',
     summary:
       'The core consensus engine and the abstraction that applies committed log entries to cluster state. RachisConsensus tracks the node\'s current role (Follower, Candidate, Leader) via a RachisState value and drives the transitions between them as elections happen and terms change.',
@@ -1218,7 +1218,7 @@ export const nodes: MapNode[] = [
   },
   {
     id: 'cluster-network',
-    label: 'Wire protocol (AppendEntries, RequestVote, ...)',
+    label: 'Wire Protocol',
     category: 'cluster',
     summary:
       'The messages nodes exchange: log replication, vote requests, snapshot install, the initial handshake. AppendEntries itself carries no log entries - just the term, the previous index/term to validate against, and how many RachisEntry records follow it on the wire.',
@@ -1384,7 +1384,7 @@ export const nodes: MapNode[] = [
   },
   {
     id: 'backup-destinations',
-    label: 'Destinations (S3, Azure, GCS, FTP)',
+    label: 'Destinations',
     category: 'server',
     summary:
       'The uploaders for each supported backup destination, plus direct upload/download paths. BackupUploader fires off one upload task per configured destination in parallel and joins on all of their background threads before reporting the backup complete.',
@@ -1504,7 +1504,7 @@ export const nodes: MapNode[] = [
   },
   {
     id: 'ai-settings',
-    label: 'Settings / connection strings',
+    label: 'Connection Strings',
     category: 'integration',
     summary:
       'Provider configuration: which AI service, which model, which credentials. AbstractChatCompletionClientSettings hides each provider\'s actual completions URL and request-shaping quirks, like whether it accepts strict tool schemas, behind the same virtual surface the chat client calls.',
