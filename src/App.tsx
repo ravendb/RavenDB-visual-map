@@ -5,7 +5,7 @@ import NodeDetailPanel from './components/NodeDetailPanel'
 import Toolbar from './components/Toolbar'
 import FlowPanel from './components/FlowPanel'
 import FlowNavBar from './components/FlowNavBar'
-import { getChildren, getNode } from './data/architecture'
+import { getNode } from './data/architecture'
 import { useTheme } from './lib/theme'
 import { useFlowPlayback } from './lib/useFlowPlayback'
 import { buildUrlHash, parseUrlHash, type MapUrlState } from './lib/urlState'
@@ -24,7 +24,7 @@ export default function App() {
   // Skip that one pass; the restore's own state update triggers a real one.
   const skipNextUrlWriteRef = useRef(true)
 
-  function focus(nodeId: string) {
+  function focus(nodeId: string | null) {
     setSelectedNodeId(nodeId)
     setHighlightedNodeId(nodeId)
   }
@@ -53,26 +53,20 @@ export default function App() {
     flow.startFlow(id)
   }
 
-  // Reopens whatever a node-based deep link points at: a child node expands
-  // its parent and gets selected inside it; a macro node with children opens
-  // showing its subcards, same as clicking it does.
-  function openDeepLinkedNode(nodeId: string) {
-    const node = getNode(nodeId)
-    if (!node) return
-    setExpandedNodeId(node.parentId ?? (getChildren(nodeId).length > 0 ? nodeId : null))
-    focus(nodeId)
-  }
-
+  // Reopens whatever a URL points at. expandedNodeId and nodeId (selection)
+  // are restored independently rather than one derived from the other, so a
+  // node left collapsed-but-selected (or expanded with nothing selected
+  // inside it) comes back exactly as it was left, not re-expanded by default -
+  // see urlState.ts's defaultExpandedFor for the one case that still infers it.
   function applyUrlState(state: MapUrlState) {
-    setExpandedNodeId(null)
-    setSelectedNodeId(null)
-    setHighlightedNodeId(null)
+    focus(state.nodeId)
     if (state.flowId) {
+      setExpandedNodeId(null)
       flow.startFlow(state.flowId, Math.max((state.step ?? 1) - 1, 0))
       return
     }
     if (flow.activeFlowId) flow.stopFlow()
-    if (state.nodeId) openDeepLinkedNode(state.nodeId)
+    setExpandedNodeId(state.expandedNodeId)
   }
 
   useEffect(() => {
@@ -98,11 +92,11 @@ export default function App() {
       return
     }
     const state: MapUrlState = flow.activeFlowId
-      ? { nodeId: null, flowId: flow.activeFlowId, step: flow.stepNumber }
-      : { nodeId: selectedNodeId, flowId: null, step: null }
+      ? { nodeId: selectedNodeId, expandedNodeId: null, flowId: flow.activeFlowId, step: flow.stepNumber }
+      : { nodeId: selectedNodeId, expandedNodeId, flowId: null, step: null }
     const hash = buildUrlHash(state)
     window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}${hash}`)
-  }, [selectedNodeId, flow.activeFlowId, flow.stepNumber])
+  }, [selectedNodeId, expandedNodeId, flow.activeFlowId, flow.stepNumber])
 
   const breadcrumbLabel = expandedNodeId ? getNode(expandedNodeId)?.label ?? null : null
 
@@ -133,6 +127,7 @@ export default function App() {
             flowNodeIds={flow.flowNodeIds}
             onSelectNode={handleSelectNode}
             onToggleExpand={handleToggleExpand}
+            onDeselect={() => setSelectedNodeId(null)}
           />
         </ReactFlowProvider>
         {flow.activeFlowId ? (
