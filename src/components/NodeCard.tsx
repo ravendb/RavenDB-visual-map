@@ -12,6 +12,8 @@ export interface NodeCardProps {
    * and shows the close (x). Childless nodes get the same close (x) once selected instead, since
    * they have no expand/collapse state of their own to react to. */
   expanded?: boolean
+  /** Always expanded and never collapsible - no close (x), no expand/collapse hint. */
+  permanent?: boolean
   className?: string
   style?: CSSProperties
   onClick?: () => void
@@ -28,6 +30,7 @@ export default function NodeCard({
   selected,
   flowState,
   expanded,
+  permanent,
   className,
   style,
   onClick,
@@ -48,7 +51,7 @@ export default function NodeCard({
       onClick={onClick}
       onDoubleClick={onDoubleClick}
     >
-      {(expanded || (selected && !hasChildren)) && (
+      {!permanent && (expanded || (selected && !hasChildren)) && (
         <button type="button" className="map-node__close" data-node-close aria-label="Close and return to the map" title="Close">
           ×
         </button>
@@ -58,7 +61,7 @@ export default function NodeCard({
       </div>
       <div className="map-node__label">{label}</div>
       <div className="map-node__meta">
-        {hasChildren && <span className="map-node__expand">{expanded ? 'collapse ↑' : 'expand ↴'}</span>}
+        {hasChildren && !permanent && <span className="map-node__expand">{expanded ? 'collapse ↑' : 'expand ↴'}</span>}
       </div>
       {children}
     </div>

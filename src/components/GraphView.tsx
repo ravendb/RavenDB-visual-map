@@ -29,6 +29,11 @@ const NODE_WIDTH = 220
 const NODE_HEIGHT = 92
 const FLOW_ACCENT = '#1cc8ee'
 
+// Nodes that stay expanded in place all the time instead of needing a click -
+// their contents are the point, not a drill-down. No close (x), and clicking
+// them never collapses them (see isExpanded/permanent below).
+const PERMANENTLY_EXPANDED = new Set(['search-engines'])
+
 // Sizing for the children grid an expanded node grows to show - kept in sync
 // with the CSS grid in App.css (.map-node__children / .map-node__child) so the
 // box we tell React Flow about matches what actually renders, with no
@@ -169,7 +174,8 @@ function buildFlowElements(
 
   const flowNodes: Node<MapNodeData>[] = macro.map((n) => {
     const children = getChildren(n.id)
-    const isExpanded = n.id === expandedNodeId && children.length > 0
+    const permanent = PERMANENTLY_EXPANDED.has(n.id)
+    const isExpanded = (n.id === expandedNodeId || permanent) && children.length > 0
     const size = isExpanded ? expandedSize(children.length) : { width: NODE_WIDTH, height: NODE_HEIGHT }
     const position = isExpanded ? expandedPosition(n.id, size) : MACRO_POSITIONS[n.id] ?? { x: 0, y: 0 }
     return {
@@ -188,6 +194,7 @@ function buildFlowElements(
         flowState: flowState(n.id),
         handles: nodeHandles.get(n.id),
         expanded: isExpanded,
+        permanent,
         // Push everything but the expanded node - or, during a flow, everything
         // the flow doesn't touch - into the background, like a spotlight.
         dimmed: expandedNodeId ? n.id !== expandedNodeId : isFlowActive && !flowNodeIds.has(n.id),

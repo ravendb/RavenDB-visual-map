@@ -29,6 +29,8 @@ export interface MapNodeData {
   handles?: NodeHandleSpec[]
   /** True while this node's children are shown expanded in place on the map. */
   expanded?: boolean
+  /** Always expanded and never collapsible - no close (x), no expand/collapse hint. */
+  permanent?: boolean
   /** This node's children, only needed while expanded. */
   children?: ChildSummary[]
   /** The child currently open in the detail panel, if any, so its card can be highlighted. */
@@ -57,7 +59,7 @@ function handleStyle(side: HandleSide, offset: number) {
 }
 
 export default function MapNode({ data, selected }: NodeProps) {
-  const { label, category, hasChildren, flowState, handles, expanded, children, selectedChildId, dimmed } =
+  const { label, category, hasChildren, flowState, handles, expanded, permanent, children, selectedChildId, dimmed } =
     data as MapNodeData
   const specs = handles && handles.length > 0 ? handles : DEFAULT_HANDLES
 
@@ -76,6 +78,7 @@ export default function MapNode({ data, selected }: NodeProps) {
         selected={selected}
         flowState={flowState}
         expanded={expanded}
+        permanent={permanent}
         className={expanded ? 'map-node--expanded' : undefined}
         style={dimmed ? { opacity: 0.35 } : undefined}
       >
