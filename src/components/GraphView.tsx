@@ -32,11 +32,10 @@ const FLOW_ACCENT = '#1cc8ee'
 // Sizing for the children grid an expanded node grows to show - kept in sync
 // with the CSS grid in App.css (.map-node__children / .map-node__child) so the
 // box we tell React Flow about matches what actually renders, with no
-// measurement race. Cards are wide/tall enough to carry a one-line label plus
-// a three-line summary, not just a bare name.
+// measurement race. Cards only carry a tag + one-line label, not a summary.
 const CHILD_COLS = 2
 const CHILD_CARD_WIDTH = 250
-const CHILD_CARD_HEIGHT = 100
+const CHILD_CARD_HEIGHT = 48
 const CHILD_GAP = 10
 const EXPANDED_PADDING = 14
 const EXPANDED_HEADER_HEIGHT = 96
@@ -52,6 +51,7 @@ interface GraphViewProps {
   flowNodeIds: Set<string>
   onSelectNode: (id: string) => void
   onToggleExpand: (id: string) => void
+  onDeselect: () => void
 }
 
 // Which side an edge should leave/enter a node from, based on where the other
@@ -197,7 +197,6 @@ function buildFlowElements(
               id: c.id,
               label: c.label,
               category: c.category,
-              summary: c.summary,
             }))
           : undefined,
       },
@@ -256,6 +255,7 @@ const GraphView = forwardRef<HTMLDivElement, GraphViewProps>(function GraphView(
     flowNodeIds,
     onSelectNode,
     onToggleExpand,
+    onDeselect,
   },
   ref,
 ) {
@@ -356,11 +356,13 @@ const GraphView = forwardRef<HTMLDivElement, GraphViewProps>(function GraphView(
         edges={flowEdges}
         nodeTypes={nodeTypes}
         onNodeClick={(event, node) => {
-          // The parent card and every child tile carry their own close (x) -
-          // clicking any of them collapses this node's expanded view, same as
-          // clicking the pane background does.
+          // The parent card and every child tile carry their own close (x).
+          // For a node with children, that collapses its expanded view (same
+          // as clicking the pane background does); for a childless node -
+          // which never expands - it just deselects it instead.
           if ((event.target as HTMLElement).closest('[data-node-close]')) {
-            onToggleExpand(node.id)
+            if (getChildren(node.id).length > 0) onToggleExpand(node.id)
+            else onDeselect()
             return
           }
           // Children render as plain DOM inside their expanded parent's node

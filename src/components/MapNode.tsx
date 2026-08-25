@@ -2,7 +2,6 @@ import type { CSSProperties } from 'react'
 import { Handle, Position, type NodeProps } from '@xyflow/react'
 import NodeCard from './NodeCard'
 import { CATEGORY_COLORS, CATEGORY_LABELS } from '../lib/categoryColors'
-import { highlightTerms } from '../lib/highlightTerms'
 import type { NodeCategory } from '../data/architecture'
 
 export type HandleSide = 'top' | 'bottom' | 'left' | 'right'
@@ -19,7 +18,6 @@ export interface ChildSummary {
   id: string
   label: string
   category: NodeCategory
-  summary: string
 }
 
 export interface MapNodeData {
@@ -97,7 +95,6 @@ export default function MapNode({ data, selected }: NodeProps) {
                   </span>
                 </div>
                 <span className="map-node__child-label">{child.label}</span>
-                <span className="map-node__child-summary">{highlightTerms(child.summary)}</span>
               </button>
             ))}
           </div>
