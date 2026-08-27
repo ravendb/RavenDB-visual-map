@@ -33,7 +33,8 @@ const FLOW_ACCENT = '#1cc8ee'
 // with the CSS grid in App.css (.map-node__children / .map-node__child) so the
 // box we tell React Flow about matches what actually renders, with no
 // measurement race. Cards only carry a tag + one-line label, not a summary.
-const CHILD_COLS = 2
+// Single column - children stack top to bottom rather than side by side.
+const CHILD_COLS = 1
 const CHILD_CARD_WIDTH = 250
 const CHILD_CARD_HEIGHT = 48
 const CHILD_GAP = 10
