@@ -570,6 +570,12 @@ const GraphView = forwardRef<HTMLDivElement, GraphViewProps>(function GraphView(
         // a phantom connection gesture instead of panning the canvas.
         nodesDraggable={false}
         nodesConnectable={false}
+        // Selection is our own concern (the `selected` prop each node/edge
+        // gets above, driven by selectedNodeId/expandedNodeId) - without
+        // this, React Flow's default "selectable" behavior still marks
+        // every edge with its own cursor: pointer even though clicking one
+        // does nothing here, which reads as a broken affordance.
+        elementsSelectable={false}
       >
         <Background gap={24} color={colors.dot} />
         <Controls showInteractive={false} />

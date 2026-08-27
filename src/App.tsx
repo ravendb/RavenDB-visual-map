@@ -87,6 +87,13 @@ export default function App() {
   }, [])
 
   useEffect(() => {
+    // Each step should show its own node's detail, same as clicking that
+    // tile would - not whatever was last selected before the flow started.
+    if (flow.activeFlowId && flow.currentNodeId) focus(flow.currentNodeId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flow.activeFlowId, flow.currentNodeId])
+
+  useEffect(() => {
     if (skipNextUrlWriteRef.current) {
       skipNextUrlWriteRef.current = false
       return
