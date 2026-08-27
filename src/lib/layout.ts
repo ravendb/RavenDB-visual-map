@@ -14,10 +14,11 @@ export const MACRO_POSITIONS: Record<string, { x: number; y: number }> = {
   // front door
   security: { x: 600, y: 170 },
   http: { x: 600, y: 340 },
-  // per-database core and what hangs directly off it. Attachments sits a row
-  // higher than the ongoing-task column on the right so the core's edges to
-  // ETL / backup / replication don't have to pass through its card.
-  attachments: { x: 1220, y: 340 },
+  // Storages is permanently expanded (see MapNode's `permanent` flag), so its
+  // card is always as tall as its children grid - queries and subscriptions
+  // sit up here, out of that card's way, rather than sharing Storages' row.
+  'core-queries': { x: 1220, y: 340 },
+  'core-subscriptions': { x: 1860, y: 340 },
   sharding: { x: 0, y: 510 },
   'documents-core': { x: 600, y: 510 },
   etl: { x: 1260, y: 510 },
@@ -26,6 +27,7 @@ export const MACRO_POSITIONS: Record<string, { x: number; y: number }> = {
   // subsystems fed by the core
   ai: { x: 0, y: 700 },
   indexing: { x: 300, y: 700 },
+  'core-tx-merger': { x: 600, y: 700 },
   cluster: { x: 960, y: 700 },
   backup: { x: 1560, y: 700 },
   replication: { x: 1560, y: 880 },

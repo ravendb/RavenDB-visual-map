@@ -179,6 +179,7 @@ export const nodes: MapNode[] = [
       ],
       source: [{ name: 'src/Corax', url: githubTreeUrl('src/Corax') }],
     },
+    permanent: true,
   },
   {
     id: 'ai',
