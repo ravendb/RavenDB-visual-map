@@ -104,23 +104,41 @@ function assignLanes(
     return { edge: e, sourceSide, targetSide }
   })
 
-  const laneGroups = new Map<string, string[]>()
-  function addToLane(nodeId: string, side: HandleSide, edgeId: string) {
+  // Each lane entry remembers where the *other* end of its edge actually
+  // sits, so the group can be ordered by that instead of by edge id.
+  interface LaneEntry {
+    edgeId: string
+    otherPos: { x: number; y: number }
+  }
+  const laneGroups = new Map<string, LaneEntry[]>()
+  function addToLane(nodeId: string, side: HandleSide, edgeId: string, otherPos: { x: number; y: number }) {
     const key = `${nodeId}:${side}`
     const list = laneGroups.get(key) ?? []
-    list.push(edgeId)
+    list.push({ edgeId, otherPos })
     laneGroups.set(key, list)
   }
   sides.forEach(({ edge, sourceSide, targetSide }) => {
-    addToLane(edge.source, sourceSide, edge.id)
-    addToLane(edge.target, targetSide, edge.id)
+    const sourcePos = nodeCenter(MACRO_POSITIONS[edge.source] ?? { x: 0, y: 0 })
+    const targetPos = nodeCenter(MACRO_POSITIONS[edge.target] ?? { x: 0, y: 0 })
+    addToLane(edge.source, sourceSide, edge.id, targetPos)
+    addToLane(edge.target, targetSide, edge.id, sourcePos)
   })
-  // Sort each side's edge ids for a stable, deterministic lane order.
-  laneGroups.forEach((list) => list.sort())
+  // A top/bottom lane's offset reads as a left-to-right position, a
+  // left/right lane's as top-to-bottom (see handleStyle) - so ordering each
+  // group by the other node's position along that same axis makes the
+  // handle point toward roughly where its target actually is, instead of an
+  // arbitrary (alphabetical-by-id) slot that forces an otherwise-avoidable
+  // jog into the smoothstep path. Falls back to the id for a stable order
+  // when two edges' other ends tie exactly on that axis.
+  laneGroups.forEach((list, key) => {
+    const side = key.slice(key.indexOf(':') + 1) as HandleSide
+    const axis = side === 'top' || side === 'bottom' ? 'x' : 'y'
+    list.sort((a, b) => a.otherPos[axis] - b.otherPos[axis] || a.edgeId.localeCompare(b.edgeId))
+  })
 
   function laneOffset(nodeId: string, side: HandleSide, edgeId: string): number {
-    const list = laneGroups.get(`${nodeId}:${side}`) ?? [edgeId]
-    const index = list.indexOf(edgeId)
+    const list = laneGroups.get(`${nodeId}:${side}`) ?? [{ edgeId, otherPos: { x: 0, y: 0 } }]
+    const index = list.findIndex((entry) => entry.edgeId === edgeId)
     return ((index + 1) / (list.length + 1)) * 100
   }
 

@@ -1535,7 +1535,7 @@ export const edges: MapEdge[] = [
   { id: 'http-documents', source: 'http', target: 'documents-core', label: 'routes to' },
   { id: 'http-cluster', source: 'http', target: 'cluster', label: 'server-to-server' },
   { id: 'documents-indexing', source: 'documents-core', target: 'indexing', label: 'feeds' },
-  { id: 'indexing-engines', source: 'indexing', target: 'search-engines', label: 'Corax or Lucene' },
+  { id: 'indexing-engines', source: 'indexing', target: 'search-engines', label: 'written through' },
   { id: 'documents-ai', source: 'documents-core', target: 'ai', label: 'embeddings tasks' },
   { id: 'ai-indexing', source: 'ai', target: 'indexing', label: 'vector fields' },
   { id: 'documents-storage', source: 'documents-core', target: 'storage', label: 'persists via' },
