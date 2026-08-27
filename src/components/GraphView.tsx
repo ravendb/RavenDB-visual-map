@@ -122,14 +122,30 @@ function handleId(side: HandleSide, offset: number) {
 // them all leave from the exact same pixel and overlap for their whole first
 // stretch. This spreads every side's edges evenly across it instead, and hands
 // back both the per-edge handle ids and the handle specs each node needs to render.
+// Below this, two nodes count as level with each other on the axis the edge
+// isn't traveling along - close enough that the edge could run dead straight.
+const LEVEL_EPSILON = 10
+
 function assignLanes(
   edges: typeof allEdges,
 ): { edgeAnchors: Map<string, { sourceHandle: string; targetHandle: string }>; nodeHandles: Map<string, NodeHandleSpec[]> } {
   const sides = edges.map((e) => {
-    const sourcePos = MACRO_POSITIONS[e.source] ?? { x: 0, y: 0 }
-    const targetPos = MACRO_POSITIONS[e.target] ?? { x: 0, y: 0 }
-    const { sourceSide, targetSide } = pickSides(nodeCenter(sourcePos), nodeCenter(targetPos))
-    return { edge: e, sourceSide, targetSide }
+    const sourcePos = nodeCenter(MACRO_POSITIONS[e.source] ?? { x: 0, y: 0 })
+    const targetPos = nodeCenter(MACRO_POSITIONS[e.target] ?? { x: 0, y: 0 })
+    const { sourceSide, targetSide } = pickSides(sourcePos, targetPos)
+    // A pair of same-orientation handles (both left/right, or both
+    // top/bottom) is only actually capable of running straight when the two
+    // nodes are level on the other axis - which pickSides' choice of sides
+    // doesn't by itself guarantee (an L-shaped pair is a different
+    // orientation combination entirely, never "straight" regardless).
+    const bothHorizontal = (sourceSide === 'left' || sourceSide === 'right') && (targetSide === 'left' || targetSide === 'right')
+    const bothVertical = (sourceSide === 'top' || sourceSide === 'bottom') && (targetSide === 'top' || targetSide === 'bottom')
+    const level = bothHorizontal
+      ? Math.abs(targetPos.y - sourcePos.y) < LEVEL_EPSILON
+      : bothVertical
+        ? Math.abs(targetPos.x - sourcePos.x) < LEVEL_EPSILON
+        : false
+    return { edge: e, sourceSide, targetSide, level }
   })
 
   // Each lane entry remembers where the *other* end of its edge actually
@@ -145,7 +161,12 @@ function assignLanes(
     list.push({ edgeId, otherPos })
     laneGroups.set(key, list)
   }
-  sides.forEach(({ edge, sourceSide, targetSide }) => {
+  sides.forEach(({ edge, sourceSide, targetSide, level }) => {
+    // A level pair goes straight through the center of both handles instead
+    // of sharing the proportional lane split below - so it isn't thrown off
+    // by however many other, unrelated edges happen to share that side, and
+    // doesn't itself skew their split by occupying one of the slots.
+    if (level) return
     const sourcePos = nodeCenter(MACRO_POSITIONS[edge.source] ?? { x: 0, y: 0 })
     const targetPos = nodeCenter(MACRO_POSITIONS[edge.target] ?? { x: 0, y: 0 })
     addToLane(edge.source, sourceSide, edge.id, targetPos)
@@ -164,7 +185,8 @@ function assignLanes(
     list.sort((a, b) => a.otherPos[axis] - b.otherPos[axis] || a.edgeId.localeCompare(b.edgeId))
   })
 
-  function laneOffset(nodeId: string, side: HandleSide, edgeId: string): number {
+  function laneOffset(nodeId: string, side: HandleSide, edgeId: string, level: boolean): number {
+    if (level) return 50
     const list = laneGroups.get(`${nodeId}:${side}`) ?? [{ edgeId, otherPos: { x: 0, y: 0 } }]
     const index = list.findIndex((entry) => entry.edgeId === edgeId)
     return ((index + 1) / (list.length + 1)) * 100
@@ -179,9 +201,9 @@ function assignLanes(
     nodeHandles.set(nodeId, list)
   }
 
-  sides.forEach(({ edge, sourceSide, targetSide }) => {
-    const sourceOffset = laneOffset(edge.source, sourceSide, edge.id)
-    const targetOffset = laneOffset(edge.target, targetSide, edge.id)
+  sides.forEach(({ edge, sourceSide, targetSide, level }) => {
+    const sourceOffset = laneOffset(edge.source, sourceSide, edge.id, level)
+    const targetOffset = laneOffset(edge.target, targetSide, edge.id, level)
     ensureHandle(edge.source, sourceSide, sourceOffset)
     ensureHandle(edge.target, targetSide, targetOffset)
     edgeAnchors.set(edge.id, { sourceHandle: handleId(sourceSide, sourceOffset), targetHandle: handleId(targetSide, targetOffset) })
