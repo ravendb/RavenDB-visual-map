@@ -21,7 +21,6 @@ export type NodeCategory =
   | 'indexing'
   | 'cluster'
   | 'studio'
-  | 'infra'
   | 'integration'
   | 'security'
 
@@ -355,18 +354,6 @@ export const nodes: MapNode[] = [
         { name: 'Index Administration', url: 'https://docs.ravendb.net/7.2/indexes/index-administration' },
       ],
       source: [{ name: 'src/Raven.Studio', url: githubTreeUrl('src/Raven.Studio') }],
-    },
-  },
-  {
-    id: 'infra',
-    label: 'Low-level Infra (Sparrow)',
-    category: 'infra',
-    summary: 'Shared low-level building blocks used across the server and storage engine: buffers, memory management, threading primitives, blittable JSON.',
-    description:
-      'Sparrow (and Sparrow.Server) is not a feature area but the foundation the rest of the server is built on - unmanaged memory pooling, the blittable JSON representation in Sparrow/Json, hashing and threading primitives live here because Voron and Raven.Server both depend on them.',
-    references: {
-      docs: [{ name: 'BlittableJsonReaderObject', url: 'https://docs.ravendb.net/7.2/glossary/blittable-json-reader-object' }],
-      source: [{ name: 'src/Sparrow', url: githubTreeUrl('src/Sparrow') }],
     },
   },
   {
@@ -1550,8 +1537,6 @@ export const edges: MapEdge[] = [
   { id: 'documents-replication', source: 'documents-core', target: 'replication', label: 'change feed' },
   { id: 'documents-backup', source: 'documents-core', target: 'backup', label: 'ongoing task' },
   { id: 'documents-cluster', source: 'documents-core', target: 'cluster', label: 'cluster-wide ops' },
-  { id: 'storage-infra', source: 'storage', target: 'infra', label: 'built on' },
-  { id: 'documents-infra', source: 'documents-core', target: 'infra', label: 'built on' },
   { id: 'documents-tx-merger', source: 'documents-core', target: 'core-tx-merger', label: 'batches writes' },
   { id: 'tx-merger-storage', source: 'core-tx-merger', target: 'storage', label: 'commits via' },
   { id: 'http-queries', source: 'http', target: 'core-queries', label: 'routes to' },
