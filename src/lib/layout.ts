@@ -22,28 +22,31 @@ export const MACRO_POSITIONS: Record<string, { x: number; y: number }> = {
   // http row above (e.g. "routes to") has room to sit above its top edge
   // instead of overlapping the card border.
   'core-queries': { x: 1220, y: 300 },
-  'core-subscriptions': { x: 1860, y: 300 },
+  'core-subscriptions': { x: 2130, y: 300 },
   sharding: { x: 0, y: 510 },
   'documents-core': { x: 600, y: 570 },
-  etl: { x: 1260, y: 510 },
-  integrations: { x: 1560, y: 510 },
-  sinks: { x: 1860, y: 510 },
+  etl: { x: 1600, y: 510 },
+  integrations: { x: 1830, y: 510 },
+  sinks: { x: 2130, y: 510 },
   // subsystems fed by the core - the whole row (plus TransactionMerger,
   // directly beneath Storages) is nudged down from the usual 700 to clear
   // Storages' permanently-expanded card (bottom edge at y:782) with enough
   // margin for an edge label in between, not just the card's raw height.
-  ai: { x: 0, y: 840 },
-  indexing: { x: 300, y: 840 },
-  'core-tx-merger': { x: 600, y: 840 },
-  cluster: { x: 960, y: 840 },
-  backup: { x: 1560, y: 840 },
-  replication: { x: 1560, y: 1020 },
+  // Cluster is also pushed right, off of Storages/ETL's shared column, so
+  // the edges into it (from http and from Storages) don't bend back across
+  // either card on their way there.
+  ai: { x: 0, y: 900 },
+  indexing: { x: 300, y: 900 },
+  'core-tx-merger': { x: 600, y: 900 },
+  cluster: { x: 1350, y: 900 },
+  backup: { x: 1650, y: 900 },
+  replication: { x: 1650, y: 1080 },
   // engines and the layer everything persists through - nudged down by the
   // same amount as the row above, to keep the same relative spacing.
   // Search Engines is also permanently expanded (2 children: Corax, Lucene), ~160 tall.
-  'search-engines': { x: 300, y: 1030 },
-  storage: { x: 800, y: 1030 },
-  infra: { x: 800, y: 1210 },
+  'search-engines': { x: 300, y: 1090 },
+  storage: { x: 950, y: 1090 },
+  infra: { x: 950, y: 1270 },
 }
 
 const MICRO_COLUMNS = 3
