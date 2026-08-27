@@ -93,7 +93,34 @@ function axisGap(sourceMin: number, sourceMax: number, targetMin: number, target
   return 0
 }
 
-function pickSides(sourceBox: Box, targetBox: Box): { sourceSide: HandleSide; targetSide: HandleSide } {
+function rangeOverlap(aMin: number, aMax: number, bMin: number, bMax: number): boolean {
+  return aMin < bMax && bMin < aMax
+}
+
+// Would hugging `hugAxis` (the coordinate held within source's own extent
+// on that axis - see the callers below) necessarily cut through one of
+// `obstacles` on the way to target? The exact lane offset isn't decided
+// yet at this point, so this checks conservatively against source's *whole*
+// extent on hugAxis - e.g. two nodes placed level with each other, the way
+// Queries sits in HTTP's own row: no matter which offset within HTTP's
+// height a lane ends up at, it's still inside Queries' row.
+function hugCrossesObstacle(hugAxis: 'x' | 'y', sourceBox: Box, targetBox: Box, obstacles: Box[]): boolean {
+  const hugMin = hugAxis === 'y' ? sourceBox.y : sourceBox.x
+  const hugMax = hugAxis === 'y' ? sourceBox.y + sourceBox.height : sourceBox.x + sourceBox.width
+  const travelMin = hugAxis === 'y' ? Math.min(sourceBox.x, targetBox.x) : Math.min(sourceBox.y, targetBox.y)
+  const travelMax =
+    hugAxis === 'y'
+      ? Math.max(sourceBox.x + sourceBox.width, targetBox.x + targetBox.width)
+      : Math.max(sourceBox.y + sourceBox.height, targetBox.y + targetBox.height)
+  return obstacles.some((box) => {
+    const hugOverlap = hugAxis === 'y' ? rangeOverlap(hugMin, hugMax, box.y, box.y + box.height) : rangeOverlap(hugMin, hugMax, box.x, box.x + box.width)
+    const travelOverlap =
+      hugAxis === 'y' ? rangeOverlap(travelMin, travelMax, box.x, box.x + box.width) : rangeOverlap(travelMin, travelMax, box.y, box.y + box.height)
+    return hugOverlap && travelOverlap
+  })
+}
+
+function pickSides(sourceBox: Box, targetBox: Box, obstacles: Box[]): { sourceSide: HandleSide; targetSide: HandleSide } {
   const source = boxCenter(sourceBox)
   const target = boxCenter(targetBox)
   const dx = target.x - source.x
@@ -125,7 +152,7 @@ function pickSides(sourceBox: Box, targetBox: Box): { sourceSide: HandleSide; ta
   // already alongside the target. Anything short of a real tie keeps the
   // dominant-axis pick below instead - it already routes those edges clear
   // of whatever sits in the source's own column/row.
-  if (larger > 0 && smaller / larger >= DIAGONAL_TIE_THRESHOLD) {
+  if (larger > 0 && smaller / larger >= DIAGONAL_TIE_THRESHOLD && !hugCrossesObstacle('x', sourceBox, targetBox, obstacles)) {
     return {
       sourceSide: dy > 0 ? 'bottom' : 'top',
       targetSide: dx > 0 ? 'left' : 'right',
@@ -149,11 +176,25 @@ function pickSides(sourceBox: Box, targetBox: Box): { sourceSide: HandleSide; ta
   // instead, keeping the long straight run in the source's own row/column,
   // and turn into the target via the minor axis once alongside it. One turn
   // instead of two, and - unlike blindly always hugging the vertical axis -
-  // this hugs whichever axis actually has the room to spare.
-  if (absDx > absDy) {
+  // this hugs whichever axis actually has the room to spare. But only when
+  // that row/column is actually clear - hugging HTTP's own row to reach
+  // Cluster, for instance, would cut straight through Queries, which sits
+  // in that exact row. When it's blocked, a same-orientation pair's
+  // midpoint bend - governed by both axes independently rather than
+  // committing to one - routes around it instead, so fall back to that.
+  if (absDx > absDy && !hugCrossesObstacle('y', sourceBox, targetBox, obstacles)) {
     return { sourceSide: dx > 0 ? 'right' : 'left', targetSide: dy > 0 ? 'top' : 'bottom' }
   }
-  return { sourceSide: dy > 0 ? 'bottom' : 'top', targetSide: dx > 0 ? 'left' : 'right' }
+  if (absDy >= absDx && !hugCrossesObstacle('x', sourceBox, targetBox, obstacles)) {
+    return { sourceSide: dy > 0 ? 'bottom' : 'top', targetSide: dx > 0 ? 'left' : 'right' }
+  }
+  return absDx > absDy
+    ? dx > 0
+      ? { sourceSide: 'right', targetSide: 'left' }
+      : { sourceSide: 'left', targetSide: 'right' }
+    : dy > 0
+      ? { sourceSide: 'bottom', targetSide: 'top' }
+      : { sourceSide: 'top', targetSide: 'bottom' }
 }
 
 function nodeCenter(pos: { x: number; y: number }) {
@@ -206,12 +247,17 @@ function handleId(side: HandleSide, offset: number) {
 function assignLanes(
   edges: typeof allEdges,
 ): { edgeAnchors: Map<string, { sourceHandle: string; targetHandle: string }>; nodeHandles: Map<string, NodeHandleSpec[]> } {
+  // Every macro node's box, so a route can be checked against whatever else
+  // is sitting nearby - not just the two nodes it actually connects.
+  const macroBoxes = new Map<string, Box>(allNodes.filter((n) => !n.parentId).map((n) => [n.id, nodeBox(n.id)]))
+
   const sides = edges.map((e) => {
     const sourceBox = nodeBox(e.source)
     const targetBox = nodeBox(e.target)
     const sourcePos = boxCenter(sourceBox)
     const targetPos = boxCenter(targetBox)
-    const { sourceSide, targetSide } = pickSides(sourceBox, targetBox)
+    const obstacles = [...macroBoxes.entries()].filter(([id]) => id !== e.source && id !== e.target).map(([, box]) => box)
+    const { sourceSide, targetSide } = pickSides(sourceBox, targetBox, obstacles)
     // A pair of same-orientation handles (both left/right, or both
     // top/bottom) is only actually capable of running straight when the two
     // nodes are level on the other axis - which pickSides' choice of sides

@@ -37,7 +37,10 @@ export const MACRO_POSITIONS: Record<string, { x: number; y: number }> = {
   // either card on their way there.
   ai: { x: 0, y: 900 },
   indexing: { x: 300, y: 900 },
-  'core-tx-merger': { x: 480, y: 900 },
+  // Squeezed into the gap between Indexing's right edge (520) and Storages'
+  // "persists via" edge to Storage, which hugs down through x~764 - the
+  // widest this card can be here without overlapping either one.
+  'core-tx-merger': { x: 525, y: 900 },
   cluster: { x: 1350, y: 900 },
   backup: { x: 1650, y: 900 },
   replication: { x: 1650, y: 1080 },
