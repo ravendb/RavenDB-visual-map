@@ -15,39 +15,40 @@ export const MACRO_POSITIONS: Record<string, { x: number; y: number }> = {
   security: { x: 600, y: 170 },
   http: { x: 600, y: 300 },
   // Storages is permanently expanded (see MapNode's `permanent` flag) at 8
-  // children in a single column, so its card is always ~565 tall and only
-  // ~280 wide (x:571-849, y:464-1028 at the position below) - queries and
-  // subscriptions sit up here, out of that card's way, rather than sharing
-  // Storages' row. Its own y is pushed well past the usual 510 so an edge
-  // label between it and the http row above (e.g. "routes to") has room to
-  // sit above its top edge instead of overlapping the card border.
+  // children/2 columns, so its card is always ~330 tall (x:441-979,
+  // y:450-782 at the position below) - queries and subscriptions sit up
+  // here, out of that card's way, rather than sharing Storages' row. Its own
+  // y is pushed well past the usual 510 so an edge label between it and the
+  // http row above (e.g. "routes to") has room to sit above its top edge
+  // instead of overlapping the card border.
   'core-queries': { x: 1220, y: 300 },
   'core-subscriptions': { x: 2130, y: 300 },
   sharding: { x: 0, y: 510 },
-  'documents-core': { x: 600, y: 700 },
+  'documents-core': { x: 600, y: 570 },
   etl: { x: 1600, y: 510 },
   integrations: { x: 1830, y: 510 },
   sinks: { x: 2130, y: 510 },
   // subsystems fed by the core - the whole row (plus TransactionMerger,
   // directly beneath Storages) is nudged down from the usual 700 to clear
-  // Storages' permanently-expanded card (bottom edge at y:1028) with enough
+  // Storages' permanently-expanded card (bottom edge at y:782) with enough
   // margin for an edge label in between, not just the card's raw height.
   // Cluster is also pushed right, off of Storages/ETL's shared column, so
   // the edges into it (from http and from Storages) don't bend back across
   // either card on their way there.
-  ai: { x: 0, y: 1100 },
-  indexing: { x: 300, y: 1100 },
-  'core-tx-merger': { x: 600, y: 1100 },
-  cluster: { x: 1350, y: 1100 },
-  backup: { x: 1650, y: 1100 },
-  replication: { x: 1650, y: 1280 },
+  ai: { x: 0, y: 900 },
+  indexing: { x: 300, y: 900 },
+  'core-tx-merger': { x: 600, y: 900 },
+  cluster: { x: 1350, y: 900 },
+  backup: { x: 1650, y: 900 },
+  replication: { x: 1650, y: 1080 },
   // engines and the layer everything persists through - nudged down by the
   // same amount as the row above, to keep the same relative spacing.
   // Search Engines is also permanently expanded (2 children: Corax, Lucene),
-  // now single-column too, so ~215 tall and ~280 wide.
-  'search-engines': { x: 300, y: 1290 },
-  storage: { x: 950, y: 1290 },
-  infra: { x: 1150, y: 1470 },
+  // stacked in a single column via childColumns: 1 (~215 tall, ~280 wide) -
+  // unlike Storages, which keeps the default 2-column grid.
+  'search-engines': { x: 300, y: 1090 },
+  storage: { x: 950, y: 1090 },
+  infra: { x: 1150, y: 1270 },
 }
 
 const MICRO_COLUMNS = 3

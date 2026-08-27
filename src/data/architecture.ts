@@ -66,6 +66,8 @@ export interface MapNode {
   parentId?: string
   /** Set for a macro node whose children are always shown expanded in place - it cannot be collapsed and has no close (x). */
   permanent?: boolean
+  /** How many columns the expanded children grid uses. Defaults to 2 (a grid); set to 1 to stack children in a single column instead. */
+  childColumns?: number
 }
 
 export interface MapEdge {
@@ -180,6 +182,7 @@ export const nodes: MapNode[] = [
       source: [{ name: 'src/Corax', url: githubTreeUrl('src/Corax') }],
     },
     permanent: true,
+    childColumns: 1,
   },
   {
     id: 'ai',

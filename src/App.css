@@ -266,7 +266,8 @@
 
 .map-node__children {
   display: grid;
-  grid-template-columns: repeat(1, 250px);
+  /* Default column count - overridden inline per node via childColumns (see MapNode.tsx). */
+  grid-template-columns: repeat(2, 250px);
   grid-auto-rows: 48px;
   gap: 10px;
   margin-top: 10px;

@@ -33,8 +33,9 @@ const FLOW_ACCENT = '#1cc8ee'
 // with the CSS grid in App.css (.map-node__children / .map-node__child) so the
 // box we tell React Flow about matches what actually renders, with no
 // measurement race. Cards only carry a tag + one-line label, not a summary.
-// Single column - children stack top to bottom rather than side by side.
-const CHILD_COLS = 1
+// Default column count - MapNode.childColumns overrides this per node (see
+// e.g. Search Engines, stacked in a single column instead of a 2-wide grid).
+const CHILD_COLS = 2
 const CHILD_CARD_WIDTH = 250
 const CHILD_CARD_HEIGHT = 48
 const CHILD_GAP = 10
@@ -66,6 +67,9 @@ interface GraphViewProps {
 // genuinely have no dominant axis rather than every edge that merely isn't
 // perfectly aligned.
 const DIAGONAL_TIE_THRESHOLD = 0.95
+// Below this offset, an axis counts as negligible - the nodes are
+// essentially aligned on it rather than genuinely offset.
+const LEVEL_EPSILON = 10
 
 function pickSides(source: { x: number; y: number }, target: { x: number; y: number }): { sourceSide: HandleSide; targetSide: HandleSide } {
   const dx = target.x - source.x
@@ -89,10 +93,29 @@ function pickSides(source: { x: number; y: number }, target: { x: number; y: num
       targetSide: dx > 0 ? 'left' : 'right',
     }
   }
-  if (absDx > absDy) {
-    return dx > 0 ? { sourceSide: 'right', targetSide: 'left' } : { sourceSide: 'left', targetSide: 'right' }
+  // The minor axis is negligible - the nodes are essentially aligned on it -
+  // so a same-orientation pair (assignLanes' `level` check picks this up and
+  // runs it dead straight) needs no jog at all.
+  if (smaller < LEVEL_EPSILON) {
+    return absDx > absDy
+      ? dx > 0
+        ? { sourceSide: 'right', targetSide: 'left' }
+        : { sourceSide: 'left', targetSide: 'right' }
+      : dy > 0
+        ? { sourceSide: 'bottom', targetSide: 'top' }
+        : { sourceSide: 'top', targetSide: 'bottom' }
   }
-  return dy > 0 ? { sourceSide: 'bottom', targetSide: 'top' } : { sourceSide: 'top', targetSide: 'bottom' }
+  // One axis clearly dominates, but the other is still real (not a tie,
+  // not negligible): a same-orientation pair here would still default to a
+  // midpoint bend - two turns - so hug the *dominant* axis from the source
+  // instead, keeping the long straight run in the source's own row/column,
+  // and turn into the target via the minor axis once alongside it. One turn
+  // instead of two, and - unlike blindly always hugging the vertical axis -
+  // this hugs whichever axis actually has the room to spare.
+  if (absDx > absDy) {
+    return { sourceSide: dx > 0 ? 'right' : 'left', targetSide: dy > 0 ? 'top' : 'bottom' }
+  }
+  return { sourceSide: dy > 0 ? 'bottom' : 'top', targetSide: dx > 0 ? 'left' : 'right' }
 }
 
 function nodeCenter(pos: { x: number; y: number }) {
@@ -101,9 +124,9 @@ function nodeCenter(pos: { x: number; y: number }) {
 
 // How big an expanded node grows to fit its children grid, and where it sits
 // so it grows outward from its own center rather than only to one side.
-function expandedSize(childCount: number): { width: number; height: number } {
-  const cols = Math.min(CHILD_COLS, Math.max(childCount, 1))
-  const rows = Math.max(1, Math.ceil(childCount / CHILD_COLS))
+function expandedSize(childCount: number, childColumns: number): { width: number; height: number } {
+  const cols = Math.min(childColumns, Math.max(childCount, 1))
+  const rows = Math.max(1, Math.ceil(childCount / childColumns))
   const width = EXPANDED_PADDING * 2 + cols * CHILD_CARD_WIDTH + (cols - 1) * CHILD_GAP
   const height = EXPANDED_HEADER_HEIGHT + EXPANDED_PADDING + rows * CHILD_CARD_HEIGHT + (rows - 1) * CHILD_GAP
   return { width: Math.max(width, NODE_WIDTH), height }
@@ -123,10 +146,6 @@ function handleId(side: HandleSide, offset: number) {
 // them all leave from the exact same pixel and overlap for their whole first
 // stretch. This spreads every side's edges evenly across it instead, and hands
 // back both the per-edge handle ids and the handle specs each node needs to render.
-// Below this, two nodes count as level with each other on the axis the edge
-// isn't traveling along - close enough that the edge could run dead straight.
-const LEVEL_EPSILON = 10
-
 function assignLanes(
   edges: typeof allEdges,
 ): { edgeAnchors: Map<string, { sourceHandle: string; targetHandle: string }>; nodeHandles: Map<string, NodeHandleSpec[]> } {
@@ -260,7 +279,8 @@ function buildFlowElements(
     const children = getChildren(n.id)
     const permanent = n.permanent === true
     const isExpanded = (n.id === expandedNodeId || permanent) && children.length > 0
-    const size = isExpanded ? expandedSize(children.length) : { width: NODE_WIDTH, height: NODE_HEIGHT }
+    const childColumns = n.childColumns ?? CHILD_COLS
+    const size = isExpanded ? expandedSize(children.length, childColumns) : { width: NODE_WIDTH, height: NODE_HEIGHT }
     const position = isExpanded ? expandedPosition(n.id, size) : MACRO_POSITIONS[n.id] ?? { x: 0, y: 0 }
     return {
       id: n.id,
@@ -279,6 +299,7 @@ function buildFlowElements(
         handles: nodeHandles.get(n.id),
         expanded: isExpanded,
         permanent,
+        childColumns,
         // Push everything but the expanded node - or, during a flow, everything
         // the flow doesn't touch - into the background, like a spotlight.
         // Permanent nodes are exempt: they stay in focus regardless of what
