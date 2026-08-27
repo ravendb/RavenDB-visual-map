@@ -192,7 +192,9 @@ function buildFlowElements(
         permanent,
         // Push everything but the expanded node - or, during a flow, everything
         // the flow doesn't touch - into the background, like a spotlight.
-        dimmed: expandedNodeId ? n.id !== expandedNodeId : isFlowActive && !flowNodeIds.has(n.id),
+        // Permanent nodes are exempt: they stay in focus regardless of what
+        // else is expanded, the same way they're never the thing being dimmed.
+        dimmed: expandedNodeId ? n.id !== expandedNodeId && !permanent : isFlowActive && !flowNodeIds.has(n.id),
         selectedChildId: isExpanded ? selectedNodeId ?? undefined : undefined,
         children: isExpanded
           ? children.map((c) => ({
@@ -381,8 +383,11 @@ const GraphView = forwardRef<HTMLDivElement, GraphViewProps>(function GraphView(
           // any other expandable tile) collapses it. Not while a flow is
           // playing though - the expand/dim treatment competes visually with
           // the flow's own dimming, and every tile should stay clickable for
-          // its detail without knocking the flow off track.
-          if (getChildren(node.id).length > 0 && !flowCurrentNodeId) onToggleExpand(node.id)
+          // its detail without knocking the flow off track. A permanent node
+          // is already expanded and never collapses, so there's nothing to
+          // toggle - doing it anyway would still churn expandedNodeId and
+          // wrongly dim the *other* permanent node while this one is focused.
+          if (getChildren(node.id).length > 0 && !flowCurrentNodeId && !getNode(node.id)?.permanent) onToggleExpand(node.id)
         }}
         onPaneClick={() => {
           if (expandedNodeId) onToggleExpand(expandedNodeId)
