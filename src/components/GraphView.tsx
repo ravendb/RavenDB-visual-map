@@ -155,6 +155,12 @@ function assignLanes(
     otherPos: { x: number; y: number }
   }
   const laneGroups = new Map<string, LaneEntry[]>()
+  // Sides a level edge has already claimed the center of - the proportional
+  // split below has to steer every other edge on that same side around that
+  // point instead of also landing on it, which an unclaimed side (or one
+  // with only a single occupant, which centers itself by default too) would
+  // otherwise do.
+  const centerClaimed = new Set<string>()
   function addToLane(nodeId: string, side: HandleSide, edgeId: string, otherPos: { x: number; y: number }) {
     const key = `${nodeId}:${side}`
     const list = laneGroups.get(key) ?? []
@@ -166,7 +172,11 @@ function assignLanes(
     // of sharing the proportional lane split below - so it isn't thrown off
     // by however many other, unrelated edges happen to share that side, and
     // doesn't itself skew their split by occupying one of the slots.
-    if (level) return
+    if (level) {
+      centerClaimed.add(`${edge.source}:${sourceSide}`)
+      centerClaimed.add(`${edge.target}:${targetSide}`)
+      return
+    }
     const sourcePos = nodeCenter(MACRO_POSITIONS[edge.source] ?? { x: 0, y: 0 })
     const targetPos = nodeCenter(MACRO_POSITIONS[edge.target] ?? { x: 0, y: 0 })
     addToLane(edge.source, sourceSide, edge.id, targetPos)
@@ -185,11 +195,21 @@ function assignLanes(
     list.sort((a, b) => a.otherPos[axis] - b.otherPos[axis] || a.edgeId.localeCompare(b.edgeId))
   })
 
+  // How much of the middle to leave clear for a level edge's own center
+  // handle - e.g. 15 reserves 35-65% so nothing else's line runs through or
+  // right alongside it.
+  const CENTER_GAP = 15
+
   function laneOffset(nodeId: string, side: HandleSide, edgeId: string, level: boolean): number {
     if (level) return 50
     const list = laneGroups.get(`${nodeId}:${side}`) ?? [{ edgeId, otherPos: { x: 0, y: 0 } }]
     const index = list.findIndex((entry) => entry.edgeId === edgeId)
-    return ((index + 1) / (list.length + 1)) * 100
+    const fraction = (index + 1) / (list.length + 1)
+    if (!centerClaimed.has(`${nodeId}:${side}`)) return fraction * 100
+    // Squeeze the usual evenly-spaced spread into the two halves outside the
+    // reserved center band, instead of letting it land inside.
+    const halfSpan = (50 - CENTER_GAP) / 50
+    return fraction < 0.5 ? fraction * 100 * halfSpan : 50 + CENTER_GAP + (fraction * 100 - 50) * halfSpan
   }
 
   const edgeAnchors = new Map<string, { sourceHandle: string; targetHandle: string }>()
