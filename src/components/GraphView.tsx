@@ -71,9 +71,47 @@ const DIAGONAL_TIE_THRESHOLD = 0.95
 // essentially aligned on it rather than genuinely offset.
 const LEVEL_EPSILON = 10
 
-function pickSides(source: { x: number; y: number }, target: { x: number; y: number }): { sourceSide: HandleSide; targetSide: HandleSide } {
+interface Box {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+function boxCenter(box: Box) {
+  return { x: box.x + box.width / 2, y: box.y + box.height / 2 }
+}
+
+// Positive gap between two boxes' extents along one axis; 0 (or negative,
+// clamped) when they actually overlap on it - e.g. a permanently-expanded
+// node's row/column span reaching past a smaller node positioned "beside"
+// it in the hand-placed grid, the way Sharding's y-range sits well inside
+// Storages' now that Storages is tall enough to span several node-rows.
+function axisGap(sourceMin: number, sourceMax: number, targetMin: number, targetMax: number): number {
+  if (targetMin > sourceMax) return targetMin - sourceMax
+  if (sourceMin > targetMax) return sourceMin - targetMax
+  return 0
+}
+
+function pickSides(sourceBox: Box, targetBox: Box): { sourceSide: HandleSide; targetSide: HandleSide } {
+  const source = boxCenter(sourceBox)
+  const target = boxCenter(targetBox)
   const dx = target.x - source.x
   const dy = target.y - source.y
+  // A box's actual extent (not just its center) decides whether entering
+  // from top/bottom or left/right is even geometrically sane: if the boxes
+  // already overlap along an axis, a handle on that axis has no "outside" to
+  // approach from without first overshooting past the other box and
+  // doubling back - so that axis is off the table regardless of which one
+  // the centers alone would call dominant.
+  const xOverlaps = axisGap(sourceBox.x, sourceBox.x + sourceBox.width, targetBox.x, targetBox.x + targetBox.width) === 0
+  const yOverlaps = axisGap(sourceBox.y, sourceBox.y + sourceBox.height, targetBox.y, targetBox.y + targetBox.height) === 0
+  if (yOverlaps && !xOverlaps) {
+    return { sourceSide: dx > 0 ? 'right' : 'left', targetSide: dx > 0 ? 'left' : 'right' }
+  }
+  if (xOverlaps && !yOverlaps) {
+    return { sourceSide: dy > 0 ? 'bottom' : 'top', targetSide: dy > 0 ? 'top' : 'bottom' }
+  }
   const absDx = Math.abs(dx)
   const absDy = Math.abs(dy)
   const larger = Math.max(absDx, absDy)
@@ -137,6 +175,25 @@ function expandedPosition(nodeId: string, size: { width: number; height: number 
   return { x: center.x - size.width / 2, y: center.y - size.height / 2 }
 }
 
+// The box an edge actually has to route around: a permanently-expanded
+// node's real (often much larger) footprint, or the standard card size for
+// everything else. Only permanent nodes need this - a click-to-expand node
+// reverts to the standard size the moment nothing else is selected, and
+// assignLanes/pickSides run once per render off the static layout, not off
+// that transient state.
+function nodeBox(nodeId: string): Box {
+  const pos = MACRO_POSITIONS[nodeId] ?? { x: 0, y: 0 }
+  const node = getNode(nodeId)
+  if (node?.permanent) {
+    const children = getChildren(nodeId)
+    if (children.length > 0) {
+      const size = expandedSize(children.length, node.childColumns ?? CHILD_COLS)
+      return { ...expandedPosition(nodeId, size), ...size }
+    }
+  }
+  return { x: pos.x, y: pos.y, width: NODE_WIDTH, height: NODE_HEIGHT }
+}
+
 function handleId(side: HandleSide, offset: number) {
   return `${side}-${offset.toFixed(2)}`
 }
@@ -150,9 +207,11 @@ function assignLanes(
   edges: typeof allEdges,
 ): { edgeAnchors: Map<string, { sourceHandle: string; targetHandle: string }>; nodeHandles: Map<string, NodeHandleSpec[]> } {
   const sides = edges.map((e) => {
-    const sourcePos = nodeCenter(MACRO_POSITIONS[e.source] ?? { x: 0, y: 0 })
-    const targetPos = nodeCenter(MACRO_POSITIONS[e.target] ?? { x: 0, y: 0 })
-    const { sourceSide, targetSide } = pickSides(sourcePos, targetPos)
+    const sourceBox = nodeBox(e.source)
+    const targetBox = nodeBox(e.target)
+    const sourcePos = boxCenter(sourceBox)
+    const targetPos = boxCenter(targetBox)
+    const { sourceSide, targetSide } = pickSides(sourceBox, targetBox)
     // A pair of same-orientation handles (both left/right, or both
     // top/bottom) is only actually capable of running straight when the two
     // nodes are level on the other axis - which pickSides' choice of sides
@@ -197,8 +256,8 @@ function assignLanes(
       centerClaimed.add(`${edge.target}:${targetSide}`)
       return
     }
-    const sourcePos = nodeCenter(MACRO_POSITIONS[edge.source] ?? { x: 0, y: 0 })
-    const targetPos = nodeCenter(MACRO_POSITIONS[edge.target] ?? { x: 0, y: 0 })
+    const sourcePos = boxCenter(nodeBox(edge.source))
+    const targetPos = boxCenter(nodeBox(edge.target))
     addToLane(edge.source, sourceSide, edge.id, targetPos)
     addToLane(edge.target, targetSide, edge.id, sourcePos)
   })

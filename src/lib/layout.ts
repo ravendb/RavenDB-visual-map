@@ -37,7 +37,7 @@ export const MACRO_POSITIONS: Record<string, { x: number; y: number }> = {
   // either card on their way there.
   ai: { x: 0, y: 900 },
   indexing: { x: 300, y: 900 },
-  'core-tx-merger': { x: 600, y: 900 },
+  'core-tx-merger': { x: 480, y: 900 },
   cluster: { x: 1350, y: 900 },
   backup: { x: 1650, y: 900 },
   replication: { x: 1650, y: 1080 },
@@ -47,7 +47,7 @@ export const MACRO_POSITIONS: Record<string, { x: number; y: number }> = {
   // stacked in a single column via childColumns: 1 (~215 tall, ~280 wide) -
   // unlike Storages, which keeps the default 2-column grid.
   'search-engines': { x: 300, y: 1090 },
-  storage: { x: 950, y: 1090 },
+  storage: { x: 1050, y: 1090 },
   infra: { x: 1150, y: 1270 },
 }
 
