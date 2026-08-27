@@ -46,7 +46,7 @@ export const MACRO_POSITIONS: Record<string, { x: number; y: number }> = {
   // Search Engines is also permanently expanded (2 children: Corax, Lucene), ~160 tall.
   'search-engines': { x: 300, y: 1090 },
   storage: { x: 950, y: 1090 },
-  infra: { x: 950, y: 1270 },
+  infra: { x: 1150, y: 1270 },
 }
 
 const MICRO_COLUMNS = 3
