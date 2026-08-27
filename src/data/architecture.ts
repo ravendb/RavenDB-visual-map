@@ -923,23 +923,47 @@ export const nodes: MapNode[] = [
   // Micro nodes: Search engines
   // ---------------------------------------------------------------------
   {
-    id: 'search-engines-internals',
-    label: 'Corax & Lucene internals',
+    id: 'search-engines-corax',
+    label: 'Corax',
     category: 'indexing',
     summary:
-      'Corax: Analyzer composes a tokenizer (ITokenizer) with transformers like lower-casing in a staged pipeline that can resume tokenization across steps; IndexWriter then builds the inverted index - explicitly single-threaded and caller-synchronized rather than internally locked - while IndexFieldsMapping resolves each field by Slice, string or integer id. IndexSearcher executes queries against that index, switching to a bitmap representation once a term\'s postings cross a 32MB threshold, trading memory for faster set operations. Lucene: LuceneIndexPersistence layers Lucene\'s own IndexWriter and suggestion writers on top of LuceneVoronDirectory, Lucene\'s Directory implementation on Voron, which refuses to be constructed outside a write transaction - so a Lucene-backed index still persists transactionally through Voron rather than the OS filesystem.',
+      'The in-house engine. Analyzer composes a tokenizer (ITokenizer) with transformers like lower-casing in a staged pipeline that can resume tokenization across steps; IndexWriter then builds the inverted index - explicitly single-threaded and caller-synchronized rather than internally locked - while IndexFieldsMapping resolves each field by Slice, string or integer id. IndexSearcher executes queries against that index, switching to a bitmap representation once a term\'s postings cross a 32MB threshold, trading memory for faster set operations.',
     references: {
       docs: [
         { name: 'Search Engine: Corax', url: 'https://docs.ravendb.net/7.2/indexes/search-engine/corax' },
         { name: 'Indexing Basics', url: 'https://docs.ravendb.net/7.2/indexes/indexing-basics' },
         { name: 'Query Overview', url: 'https://docs.ravendb.net/7.2/querying/overview' },
+      ],
+      source: [{ name: 'src/Corax', url: githubTreeUrl('src/Corax') }],
+    },
+    codeRef: {
+      file: 'src/Corax/Indexing/IndexWriter.cs',
+      startLine: 38,
+      expectSymbol: 'class IndexWriter',
+    },
+    parentId: 'search-engines',
+  },
+  {
+    id: 'search-engines-lucene',
+    label: 'Lucene',
+    category: 'indexing',
+    summary:
+      'The older, still fully supported engine. LuceneIndexPersistence layers Lucene\'s own IndexWriter and per-field suggestion writers on top of LuceneVoronDirectory, Lucene\'s Directory implementation on Voron, which refuses to be constructed outside a write transaction - so a Lucene-backed index still persists transactionally through Voron rather than the OS filesystem.',
+    references: {
+      docs: [
         { name: 'Indexes: Term Vectors', url: 'https://docs.ravendb.net/7.2/indexes/using-term-vectors' },
+        { name: 'Filter with Lucene Syntax', url: 'https://docs.ravendb.net/7.2/querying/filtering-query-results/filter-with-lucene-syntax' },
+        { name: 'Query by Facets', url: 'https://docs.ravendb.net/7.2/indexes/querying/faceted-search' },
       ],
       source: [
-        { name: 'src/Corax', url: githubTreeUrl('src/Corax') },
         { name: 'src/Raven.Server/Documents/Indexes/Persistence/Lucene', url: githubTreeUrl('src/Raven.Server/Documents/Indexes/Persistence/Lucene') },
         { name: 'src/Raven.Server/Indexing', url: githubTreeUrl('src/Raven.Server/Indexing') },
       ],
+    },
+    codeRef: {
+      file: 'src/Raven.Server/Documents/Indexes/Persistence/Lucene/LuceneIndexPersistence.cs',
+      startLine: 38,
+      expectSymbol: 'class LuceneIndexPersistence',
     },
     parentId: 'search-engines',
   },
