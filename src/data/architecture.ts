@@ -687,72 +687,6 @@ export const nodes: MapNode[] = [
   },
 
   // ---------------------------------------------------------------------
-  // Micro nodes: Attachments
-  // ---------------------------------------------------------------------
-  {
-    id: 'attachments-storage',
-    label: 'AttachmentsStorage',
-    category: 'server',
-    summary:
-      'Core read/write logic for attachment streams, backed by a Voron table and content hashes. Every attachment record is keyed by a 44-byte content hash (AttachmentHashSize), which is exactly what lets several documents share one stored copy of identical content.',
-    references: {
-      docs: [
-        { name: 'Store Attachments Locally (Deduplication)', url: 'https://docs.ravendb.net/7.2/document-extensions/attachments/store-attachments/store-attachments-local' },
-        { name: 'Get Attachments', url: 'https://docs.ravendb.net/7.2/document-extensions/attachments/get-attachments' },
-        { name: 'Attachments Overview', url: 'https://docs.ravendb.net/7.2/document-extensions/attachments/overview' },
-      ],
-      source: [{ name: 'src/Raven.Server/Documents/AttachmentsStorage.cs', url: githubBlobUrl('src/Raven.Server/Documents/AttachmentsStorage.cs') }],
-    },
-    codeRef: {
-      file: 'src/Raven.Server/Documents/AttachmentsStorage.cs',
-      startLine: 52,
-      expectSymbol: 'class AttachmentsStorage',
-    },
-    parentId: 'attachments',
-  },
-  {
-    id: 'attachments-remote-storage',
-    label: 'Remote Attachments Storage',
-    category: 'server',
-    summary:
-      'Fetches an attachment stream back from external cold storage (e.g. S3/Azure, after it was tiered out during a backup) on demand, instead of keeping every attachment resident locally forever. It derives from the same AbstractBackgroundWorkStorage used for document expiration, and walks each document\'s metadata to find attachments still flagged as remote rather than fetched.',
-    references: {
-      docs: [
-        { name: 'Store Attachments Remotely', url: 'https://docs.ravendb.net/7.2/document-extensions/attachments/store-attachments/store-attachments-remote' },
-        { name: 'Configure Remote Attachments', url: 'https://docs.ravendb.net/7.2/document-extensions/attachments/configure-remote-attachments' },
-        { name: 'Get Attachments', url: 'https://docs.ravendb.net/7.2/document-extensions/attachments/get-attachments' },
-      ],
-      source: [{ name: 'src/Raven.Server/Documents/RemoteAttachmentsStorage.cs', url: githubBlobUrl('src/Raven.Server/Documents/RemoteAttachmentsStorage.cs') }],
-    },
-    codeRef: {
-      file: 'src/Raven.Server/Documents/RemoteAttachmentsStorage.cs',
-      startLine: 38,
-      expectSymbol: 'class RemoteAttachmentsStorage',
-    },
-    parentId: 'attachments',
-  },
-  {
-    id: 'attachments-model',
-    label: 'Attachment / Tombstone',
-    category: 'server',
-    summary:
-      'The in-memory model for an attachment record and its deletion marker (tombstone). The model is a flat set of fields (StorageId, Key, Etag, ChangeVector, content hash, size, stream) - RevisionVersion is only populated on the copy kept for a revision, not on the live document\'s.',
-    references: {
-      docs: [
-        { name: 'Attachments Overview', url: 'https://docs.ravendb.net/7.2/document-extensions/attachments/overview' },
-        { name: 'Store Attachments Locally', url: 'https://docs.ravendb.net/7.2/document-extensions/attachments/store-attachments/store-attachments-local' },
-      ],
-      source: [{ name: 'src/Raven.Server/Documents/Attachment.cs', url: githubBlobUrl('src/Raven.Server/Documents/Attachment.cs') }],
-    },
-    codeRef: {
-      file: 'src/Raven.Server/Documents/Attachment.cs',
-      startLine: 8,
-      expectSymbol: 'class Attachment',
-    },
-    parentId: 'attachments',
-  },
-
-  // ---------------------------------------------------------------------
   // Micro nodes: Sharding
   // ---------------------------------------------------------------------
   {
@@ -1575,14 +1509,12 @@ export const edges: MapEdge[] = [
   { id: 'sharding-documents', source: 'sharding', target: 'documents-core', label: 'per-shard requests' },
   { id: 'http-documents', source: 'http', target: 'documents-core', label: 'routes to' },
   { id: 'http-cluster', source: 'http', target: 'cluster', label: 'server-to-server' },
-  { id: 'documents-attachments', source: 'documents-core', target: 'attachments' },
   { id: 'documents-indexing', source: 'documents-core', target: 'indexing', label: 'feeds' },
   { id: 'indexing-engines', source: 'indexing', target: 'search-engines', label: 'Corax or Lucene' },
   { id: 'documents-ai', source: 'documents-core', target: 'ai', label: 'embeddings tasks' },
   { id: 'ai-indexing', source: 'ai', target: 'indexing', label: 'vector fields' },
   { id: 'documents-storage', source: 'documents-core', target: 'storage', label: 'persists via' },
   { id: 'engines-storage', source: 'search-engines', target: 'storage', label: 'persists via' },
-  { id: 'attachments-storage-edge', source: 'attachments', target: 'storage', label: 'persists via' },
   { id: 'cluster-storage', source: 'cluster', target: 'storage', label: 'ACID Raft log' },
   { id: 'documents-etl', source: 'documents-core', target: 'etl', label: 'change feed' },
   { id: 'sinks-documents', source: 'sinks', target: 'documents-core', label: 'writes documents' },
@@ -1592,6 +1524,11 @@ export const edges: MapEdge[] = [
   { id: 'documents-cluster', source: 'documents-core', target: 'cluster', label: 'cluster-wide ops' },
   { id: 'storage-infra', source: 'storage', target: 'infra', label: 'built on' },
   { id: 'documents-infra', source: 'documents-core', target: 'infra', label: 'built on' },
+  { id: 'documents-tx-merger', source: 'documents-core', target: 'core-tx-merger', label: 'batches writes' },
+  { id: 'tx-merger-storage', source: 'core-tx-merger', target: 'storage', label: 'commits via' },
+  { id: 'http-queries', source: 'http', target: 'core-queries', label: 'routes to' },
+  { id: 'queries-documents', source: 'core-queries', target: 'documents-core', label: 'reads via' },
+  { id: 'documents-subscriptions', source: 'documents-core', target: 'core-subscriptions', label: 'change feed' },
 ]
 
 export function getChildren(nodeId: string): MapNode[] {
