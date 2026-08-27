@@ -57,10 +57,38 @@ interface GraphViewProps {
 // Which side an edge should leave/enter a node from, based on where the other
 // node actually sits - so a same-row connection goes left/right instead of
 // looping out the bottom and back in the top.
+// How close to exactly diagonal (dx === dy) an edge has to be before it's
+// treated as a tie between the two axes, rather than one axis dominating.
+// Checked against every edge in the current layout: only client->http and
+// studio->http actually sit at a dead-even 1.0 - the next closest is 0.91 -
+// so this threshold is deliberately tight, to touch only the pairs that
+// genuinely have no dominant axis rather than every edge that merely isn't
+// perfectly aligned.
+const DIAGONAL_TIE_THRESHOLD = 0.95
+
 function pickSides(source: { x: number; y: number }, target: { x: number; y: number }): { sourceSide: HandleSide; targetSide: HandleSide } {
   const dx = target.x - source.x
   const dy = target.y - source.y
-  if (Math.abs(dx) > Math.abs(dy)) {
+  const absDx = Math.abs(dx)
+  const absDy = Math.abs(dy)
+  const larger = Math.max(absDx, absDy)
+  const smaller = Math.min(absDx, absDy)
+  // A genuine tie: a same-orientation pair of handles (both top/bottom or
+  // both left/right) bends at the midpoint between the two nodes by
+  // default, which is exactly where an unrelated node placed between them
+  // tends to sit. Perpendicular handles instead force the bend to the
+  // target's own row/column, so the path hugs the source's column down (or
+  // row across) - clear of anything else - and only turns once it's
+  // already alongside the target. Anything short of a real tie keeps the
+  // dominant-axis pick below instead - it already routes those edges clear
+  // of whatever sits in the source's own column/row.
+  if (larger > 0 && smaller / larger >= DIAGONAL_TIE_THRESHOLD) {
+    return {
+      sourceSide: dy > 0 ? 'bottom' : 'top',
+      targetSide: dx > 0 ? 'left' : 'right',
+    }
+  }
+  if (absDx > absDy) {
     return dx > 0 ? { sourceSide: 'right', targetSide: 'left' } : { sourceSide: 'left', targetSide: 'right' }
   }
   return dy > 0 ? { sourceSide: 'bottom', targetSide: 'top' } : { sourceSide: 'top', targetSide: 'bottom' }
