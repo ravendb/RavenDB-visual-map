@@ -48,6 +48,9 @@ export const MACRO_POSITIONS: Record<string, { x: number; y: number }> = {
   backup: { x: 1650, y: 900 },
   // engines and the layer everything persists through - nudged down by the
   // same amount as the row above, to keep the same relative spacing.
+  // Vector Search sits directly under AI (straight down via "vector fields"),
+  // left of Search Engines with room to spare.
+  'vector-search': { x: 0, y: 1090 },
   // Search Engines is also permanently expanded (2 children: Corax, Lucene),
   // stacked in a single column via childColumns: 1 (~215 tall, ~280 wide) -
   // unlike Storages, which keeps the default 2-column grid.

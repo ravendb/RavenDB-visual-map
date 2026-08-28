@@ -185,18 +185,38 @@ export const nodes: MapNode[] = [
   },
   {
     id: 'ai',
-    label: 'AI & Vector Search',
-    category: 'integration',
-    summary: 'Embeddings generation, vector fields in indexes, and the chat/assistant integrations with external AI providers.',
+    label: 'AI',
+    category: 'indexing',
+    summary: 'Embeddings generation and the chat/assistant integrations with external AI providers.',
     description:
-      'EmbeddingsGenerator is a background task that turns document text into vectors through an external provider, chunking it first with TextChunker. ChatCompletionClient is the client for the user\'s own configured AI provider; AiAssistant is a separate, license-gated proxy to RavenDB\'s own cloud-hosted assistant at api.ravendb.net and does not use ChatCompletionClient or the user\'s provider config. The vectors themselves are indexed as vector fields (Documents/Indexes/VectorSearch) and queried like any other index field.',
+      'EmbeddingsGenerator is a background task that turns document text into vectors through an external provider, chunking it first with TextChunker. ChatCompletionClient is the client for the user\'s own configured AI provider; AiAssistant is a separate, license-gated proxy to RavenDB\'s own cloud-hosted assistant at api.ravendb.net and does not use ChatCompletionClient or the user\'s provider config. The vectors it produces feed into Vector Search, where they\'re indexed as fields like any other.',
     references: {
       docs: [
         { name: 'AI Integration & Vector Search', url: 'https://docs.ravendb.net/7.2/ai-integration/overview' },
-        { name: 'Vector Search - Overview', url: 'https://docs.ravendb.net/7.2/ai-integration/vector-search/overview/' },
         { name: 'The Embeddings Generation Task', url: 'https://docs.ravendb.net/7.2/ai-integration/generating-embeddings/embeddings-generation-task/' },
       ],
       source: [{ name: 'src/Raven.Server/Documents/AI', url: githubTreeUrl('src/Raven.Server/Documents/AI') }],
+    },
+  },
+  {
+    id: 'vector-search',
+    label: 'Vector Search',
+    category: 'indexing',
+    summary: 'Vector fields on an index: turning embeddings into an indexable, queryable representation for similarity search.',
+    description:
+      'GenerateEmbeddings lazily constructs a BERT ONNX embedding model the first time it\'s needed - the bundled bge-micro-v2 model - and buffers its 384-dimensional output in a 1536-byte block (F32Size, 4 bytes per float). Vector fields are indexed and queried like any other index field, through either a static index or a dynamic query - independent of AI Integration, which only supplies the vectors when the source text isn\'t already embedded elsewhere.',
+    references: {
+      docs: [
+        { name: 'Vector Search - Overview', url: 'https://docs.ravendb.net/7.2/ai-integration/vector-search/overview/' },
+        { name: 'Vector Search using a Static Index', url: 'https://docs.ravendb.net/7.2/ai-integration/vector-search/vector-search-using-static-index' },
+        { name: 'Vector Search using a Dynamic Query', url: 'https://docs.ravendb.net/7.2/ai-integration/vector-search/vector-search-using-dynamic-query' },
+      ],
+      source: [{ name: 'src/Raven.Server/Documents/Indexes/VectorSearch', url: githubTreeUrl('src/Raven.Server/Documents/Indexes/VectorSearch') }],
+    },
+    codeRef: {
+      file: 'src/Raven.Server/Documents/Indexes/VectorSearch/GenerateEmbeddings.cs',
+      startLine: 27,
+      expectSymbol: 'class GenerateEmbeddings',
     },
   },
   {
@@ -887,27 +907,6 @@ export const nodes: MapNode[] = [
     },
     parentId: 'indexing',
   },
-  {
-    id: 'indexing-vector',
-    label: 'VectorSearch',
-    category: 'indexing',
-    summary:
-      'Vector fields: turning text/embeddings into indexable vectors for similarity search. GenerateEmbeddings lazily constructs a BERT ONNX embedding model the first time it\'s needed - the bundled bge-micro-v2 model - and buffers its 384-dimensional output in a 1536-byte block (F32Size, 4 bytes per float).',
-    references: {
-      docs: [
-        { name: 'Vector Search using a Static Index', url: 'https://docs.ravendb.net/7.2/ai-integration/vector-search/vector-search-using-static-index' },
-        { name: 'Vector Search using a Dynamic Query', url: 'https://docs.ravendb.net/7.2/ai-integration/vector-search/vector-search-using-dynamic-query' },
-        { name: 'Connection String to bge-micro-v2 (Embedded)', url: 'https://docs.ravendb.net/7.2/ai-integration/connection-strings/embedded' },
-      ],
-      source: [{ name: 'src/Raven.Server/Documents/Indexes/VectorSearch', url: githubTreeUrl('src/Raven.Server/Documents/Indexes/VectorSearch') }],
-    },
-    codeRef: {
-      file: 'src/Raven.Server/Documents/Indexes/VectorSearch/GenerateEmbeddings.cs',
-      startLine: 27,
-      expectSymbol: 'class GenerateEmbeddings',
-    },
-    parentId: 'indexing',
-  },
 
   // ---------------------------------------------------------------------
   // Micro nodes: Search engines
@@ -1527,7 +1526,8 @@ export const edges: MapEdge[] = [
   { id: 'documents-indexing', source: 'documents-core', target: 'indexing', label: 'feeds' },
   { id: 'indexing-engines', source: 'indexing', target: 'search-engines', label: 'written through' },
   { id: 'documents-ai', source: 'documents-core', target: 'ai', label: 'embeddings tasks' },
-  { id: 'ai-indexing', source: 'ai', target: 'indexing', label: 'vector fields' },
+  { id: 'ai-vector-search', source: 'ai', target: 'vector-search', label: 'vector fields' },
+  { id: 'vector-search-indexing', source: 'vector-search', target: 'indexing', label: 'indexed as field' },
   { id: 'documents-storage', source: 'documents-core', target: 'storage', label: 'persists via' },
   { id: 'engines-storage', source: 'search-engines', target: 'storage', label: 'persists via' },
   { id: 'cluster-storage', source: 'cluster', target: 'storage', label: 'ACID Raft log' },

@@ -62,7 +62,8 @@ export const FLOWS: Flow[] = [
     steps: [
       { nodeId: 'documents-core', note: 'A document change is picked up by the embeddings ongoing task.' },
       { nodeId: 'ai', note: 'TextChunker splits the text and EmbeddingsGenerator asks the configured provider for vectors.' },
-      { nodeId: 'indexing', note: 'The vectors are indexed as vector fields on the index.' },
+      { nodeId: 'vector-search', note: 'The vectors are indexed as fields, independent of whichever AI provider produced them.' },
+      { nodeId: 'indexing', note: 'The vector field is written through the index like any other field.' },
       { nodeId: 'search-engines', note: 'The search engine stores the vector data and answers similarity queries against it.' },
       { nodeId: 'storage', note: 'Index and vector data are persisted through Voron.' },
     ],
