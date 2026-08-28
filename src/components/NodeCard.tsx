@@ -8,9 +8,9 @@ export interface NodeCardProps {
   hasChildren: boolean
   selected?: boolean
   flowState?: 'current' | 'visited'
-  /** True once this node's children are expanded in place - swaps the "expand" hint to "collapse"
-   * and shows the close (x). Childless nodes get the same close (x) once selected instead, since
-   * they have no expand/collapse state of their own to react to. */
+  /** True once this node's children are expanded in place - shows a "collapse" hint and the close
+   * (x). Childless nodes get the same close (x) once selected instead, since they have no
+   * expand/collapse state of their own to react to. A collapsed node with children shows neither. */
   expanded?: boolean
   /** Always expanded and never collapsible - no close (x), no expand/collapse hint. */
   permanent?: boolean
@@ -61,7 +61,7 @@ export default function NodeCard({
       </div>
       <div className="map-node__label">{label}</div>
       <div className="map-node__meta">
-        {hasChildren && !permanent && <span className="map-node__expand">{expanded ? 'collapse ↑' : 'expand ↴'}</span>}
+        {hasChildren && !permanent && expanded && <span className="map-node__expand">collapse ↑</span>}
       </div>
       {children}
     </div>

@@ -37,6 +37,8 @@ export interface MapNodeData {
   children?: ChildSummary[]
   /** The child currently open in the detail panel, if any, so its card can be highlighted. */
   selectedChildId?: string
+  /** The child a playing flow's current step calls out, if any, so its card can pulse the same way the parent node does. */
+  flowHighlightChildId?: string
   /** True while a different node is expanded, to push everything else visually into the background. */
   dimmed?: boolean
   [key: string]: unknown
@@ -61,8 +63,20 @@ function handleStyle(side: HandleSide, offset: number) {
 }
 
 export default function MapNode({ data, selected }: NodeProps) {
-  const { label, category, hasChildren, flowState, handles, expanded, permanent, childColumns, children, selectedChildId, dimmed } =
-    data as MapNodeData
+  const {
+    label,
+    category,
+    hasChildren,
+    flowState,
+    handles,
+    expanded,
+    permanent,
+    childColumns,
+    children,
+    selectedChildId,
+    flowHighlightChildId,
+    dimmed,
+  } = data as MapNodeData
   const specs = handles && handles.length > 0 ? handles : DEFAULT_HANDLES
 
   return (
@@ -86,22 +100,27 @@ export default function MapNode({ data, selected }: NodeProps) {
       >
         {expanded && children && children.length > 0 && (
           <div className="map-node__children" style={{ gridTemplateColumns: `repeat(${childColumns ?? 2}, 250px)` }}>
-            {children.map((child) => (
-              <button
-                key={child.id}
-                type="button"
-                className={child.id === selectedChildId ? 'map-node__child map-node__child--selected' : 'map-node__child'}
-                data-child-id={child.id}
-                style={{ '--child-border': CATEGORY_COLORS[child.category] } as CSSProperties}
-              >
-                <div className="map-node__child-head">
-                  <span className="map-node__child-tag" style={{ background: CATEGORY_COLORS[child.category] }}>
-                    {CATEGORY_LABELS[child.category]}
-                  </span>
-                </div>
-                <span className="map-node__child-label">{child.label}</span>
-              </button>
-            ))}
+            {children.map((child) => {
+              const childClass = ['map-node__child']
+              if (child.id === selectedChildId) childClass.push('map-node__child--selected')
+              if (child.id === flowHighlightChildId) childClass.push('map-node__child--flow-current')
+              return (
+                <button
+                  key={child.id}
+                  type="button"
+                  className={childClass.join(' ')}
+                  data-child-id={child.id}
+                  style={{ '--child-border': CATEGORY_COLORS[child.category] } as CSSProperties}
+                >
+                  <div className="map-node__child-head">
+                    <span className="map-node__child-tag" style={{ background: CATEGORY_COLORS[child.category] }}>
+                      {CATEGORY_LABELS[child.category]}
+                    </span>
+                  </div>
+                  <span className="map-node__child-label">{child.label}</span>
+                </button>
+              )
+            })}
           </div>
         )}
       </NodeCard>

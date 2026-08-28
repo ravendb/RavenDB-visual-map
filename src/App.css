@@ -323,6 +323,25 @@
   box-shadow: 0 0 0 2px var(--color-accent);
 }
 
+/* Mirrors .map-node--flow-current's pulse, scaled down for a 48px child card
+   (the parent's 8px box-shadow spread would blow out past the card's edges here). */
+.map-node__child--flow-current {
+  border-color: #1cc8ee !important;
+  animation: child-flow-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes child-flow-pulse {
+  0%,
+  100% {
+    background: rgba(28, 200, 238, 0.34);
+    box-shadow: 0 0 0 2px #1cc8ee;
+  }
+  50% {
+    background: rgba(28, 200, 238, 0.55);
+    box-shadow: 0 0 0 4px rgba(28, 200, 238, 0.35);
+  }
+}
+
 .map-node__child-head {
   display: flex;
   align-items: center;

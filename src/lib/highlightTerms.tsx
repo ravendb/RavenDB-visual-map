@@ -89,6 +89,8 @@ const PHRASES = [
   'etags',
   'etag',
   'session.Store',
+  'session.Query<T>()',
+  'session.Advanced.Attachments.Store',
   'Raven.Client',
   'Raven.Server',
   'Raven.Studio',
@@ -111,7 +113,12 @@ const CASE_SENSITIVE_RE = new RegExp(
   `\\b(?:[A-Z]{1,2}[a-z0-9]*(?:[A-Z][a-z0-9]+)+|[a-z]+(?:[A-Z][a-z0-9]+)+|${ACRONYMS.map(escapeRegExp).join('|')}|${SINGLE_WORD_TERMS.map(escapeRegExp).join('|')})\\b`,
   'g',
 )
-const PHRASE_RE = new RegExp(`\\b(?:${PHRASES.map(escapeRegExp).join('|')})\\b`, 'gi')
+// (?<!\w)/(?!\w) rather than \b at the edges: a phrase like "session.Query<T>()"
+// ends in a non-word character, so the \b transition test (word <-> non-word)
+// never fires right after it - these lookarounds just check "no word char here"
+// on either side, which matches trailing punctuation correctly while still
+// blocking a match mid-identifier.
+const PHRASE_RE = new RegExp(`(?<!\\w)(?:${PHRASES.map(escapeRegExp).join('|')})(?!\\w)`, 'gi')
 
 interface Span {
   start: number
