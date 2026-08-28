@@ -185,7 +185,7 @@ export const nodes: MapNode[] = [
   },
   {
     id: 'ai',
-    label: 'AI',
+    label: 'AI & Vector Search',
     category: 'indexing',
     summary: 'Embeddings generation and the chat/assistant integrations with external AI providers.',
     description:
@@ -1277,7 +1277,7 @@ export const nodes: MapNode[] = [
   {
     id: 'ai-embeddings',
     label: 'Embeddings generation',
-    category: 'integration',
+    category: 'indexing',
     summary:
       'The background task that sends text to an embeddings provider and stores the resulting vectors. It runs its own work queue with separate query-time and ETL-time modes, so an ETL run\'s embedding calls don\'t compete with a live search query\'s.',
     references: {
@@ -1297,7 +1297,7 @@ export const nodes: MapNode[] = [
   {
     id: 'ai-chunker',
     label: 'TextChunker',
-    category: 'integration',
+    category: 'indexing',
     summary:
       'Splits document text into chunks small enough to embed, before generation. TextChunker supports six chunking strategies - plain text, line-based, HTML-stripped, or Markdown, with or without paragraph awareness - all budgeted against a token count that already accounts for the configured prefix.',
     references: {
@@ -1314,7 +1314,7 @@ export const nodes: MapNode[] = [
   {
     id: 'ai-chat',
     label: 'ChatCompletionClient',
-    category: 'integration',
+    category: 'indexing',
     summary:
       'The client for chat/completion calls to an external AI provider, including SSE streaming. It goes through a pooled HttpClient rather than opening a fresh connection per call, and is created through a factory that picks the right settings implementation - OpenAI, Azure OpenAI, Google, Ollama - for the connection string\'s provider.',
     references: {
@@ -1335,7 +1335,7 @@ export const nodes: MapNode[] = [
   {
     id: 'ai-assistant',
     label: 'AiAssistant',
-    category: 'integration',
+    category: 'indexing',
     summary:
       'A license-gated proxy to RavenDB\'s own cloud-hosted assistant at api.ravendb.net, independent of ChatCompletionClient and the user\'s configured AI provider. AiAssistantHandler exposes separate endpoints for consent, usage and the actual assist call - the consent split lets the UI gate the feature before the first real request goes out.',
     references: {
@@ -1352,7 +1352,7 @@ export const nodes: MapNode[] = [
   {
     id: 'ai-settings',
     label: 'Connection Strings',
-    category: 'integration',
+    category: 'indexing',
     summary:
       'Provider configuration: which AI service, which model, which credentials. AbstractChatCompletionClientSettings hides each provider\'s actual completions URL and request-shaping quirks, like whether it accepts strict tool schemas, behind the same virtual surface the chat client calls.',
     references: {
