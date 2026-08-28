@@ -12,6 +12,8 @@ export interface FlowPlaybackState {
   activeFlowId: string | null
   activeFlowLabel: string | null
   currentNodeId: string | null
+  /** Child subcard id to highlight for the current step, if that step names one (see FlowStep.highlightChildId). */
+  currentHighlightChildId: string | null
   /** Steps from the start of the flow up to and including the current step. */
   visitedSteps: FlowStepView[]
   stepNumber: number
@@ -88,6 +90,7 @@ export function useFlowPlayback(): FlowPlaybackState {
     activeFlowId,
     activeFlowLabel: activeFlow?.label ?? null,
     currentNodeId: activeFlow?.steps[stepIndex]?.nodeId ?? null,
+    currentHighlightChildId: activeFlow?.steps[stepIndex]?.highlightChildId ?? null,
     visitedSteps,
     stepNumber: stepIndex + 1,
     stepCount: activeFlow?.steps.length ?? 0,

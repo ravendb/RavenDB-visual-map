@@ -15,6 +15,7 @@ import { nodes as allNodes, edges as allEdges, getChildren, getNode } from '../d
 import { MACRO_POSITIONS } from '../lib/layout'
 import { loadFreeformPositions, saveFreeformPositions, clearFreeformPositions, type FreeformPositions } from '../lib/freeformLayout'
 import type { Theme } from '../lib/theme'
+import { assignLanes, type Box } from '../lib/edgeRouting'
 import MapNode, { type MapNodeData } from './MapNode'
 import NodeDetailPanel from './NodeDetailPanel'
 
@@ -39,6 +40,7 @@ const EXPANDED_HEADER_HEIGHT = 96
 
 const MACRO_NODES = allNodes.filter((n) => !n.parentId)
 const MACRO_IDS = new Set(MACRO_NODES.map((n) => n.id))
+const MACRO_ID_LIST = MACRO_NODES.map((n) => n.id)
 // Only edges between two macro nodes make sense here - there's no
 // expanded-in-place view on this page for an edge into a micro node to
 // point at.
@@ -74,18 +76,6 @@ function defaultBasePositions(): FreeformPositions {
   return positions
 }
 
-// A simple dominant-axis side pick - good enough once node placement is the
-// user's own choice rather than a hand-tuned grid, unlike GraphView's more
-// elaborate version tuned for the fixed macro layout.
-function pickSides(source: { x: number; y: number }, target: { x: number; y: number }) {
-  const dx = target.x - source.x
-  const dy = target.y - source.y
-  if (Math.abs(dx) > Math.abs(dy)) {
-    return dx > 0 ? { sourceSide: 'right', targetSide: 'left' } : { sourceSide: 'left', targetSide: 'right' }
-  }
-  return dy > 0 ? { sourceSide: 'bottom', targetSide: 'top' } : { sourceSide: 'top', targetSide: 'bottom' }
-}
-
 interface FreeformMapProps {
   theme: Theme
   onExit: () => void
@@ -97,30 +87,54 @@ function FreeformMapInner({ theme, onExit }: FreeformMapProps) {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const colors = THEME_COLORS[theme]
 
+  // Every node's current box (wherever it's been dragged to, or its hand-placed
+  // default), independent of the React Flow node list itself - assignLanes
+  // needs this to pick sides/lanes before nodes' own handle data can be built.
+  const boxes = useMemo<Map<string, Box>>(() => {
+    const map = new Map<string, Box>()
+    MACRO_NODES.forEach((n) => {
+      const { size } = nodeExpandState(n.id, expandedNodeId)
+      const base = basePositions[n.id] ?? MACRO_POSITIONS[n.id] ?? { x: 0, y: 0 }
+      // Grows outward from the anchor's own center, same as GraphView's
+      // expandedPosition - so toggling expand doesn't shift where the tile
+      // "is" from the user's point of view, it just grows around that spot.
+      map.set(n.id, {
+        x: base.x - (size.width - NODE_WIDTH) / 2,
+        y: base.y - (size.height - NODE_HEIGHT) / 2,
+        width: size.width,
+        height: size.height,
+      })
+    })
+    return map
+  }, [basePositions, expandedNodeId])
+
+  // Same lane/obstacle-aware side picking GraphView uses for the hand-placed
+  // map - reused here against wherever the user actually dragged each tile,
+  // so an edge can leave/enter from any point on any side instead of always
+  // the dead center, and still bends around whatever else is nearby.
+  const { edgeAnchors, nodeHandles } = useMemo(
+    () => assignLanes(MACRO_EDGES, MACRO_ID_LIST, (id) => boxes.get(id) ?? { x: 0, y: 0, width: NODE_WIDTH, height: NODE_HEIGHT }),
+    [boxes],
+  )
+
   const nodes = useMemo<Node<MapNodeData>[]>(
     () =>
       MACRO_NODES.map((n) => {
-        const { isExpanded, size, permanent, children, childColumns } = nodeExpandState(n.id, expandedNodeId)
-        const base = basePositions[n.id] ?? MACRO_POSITIONS[n.id] ?? { x: 0, y: 0 }
-        // Grows outward from the anchor's own center, same as GraphView's
-        // expandedPosition - so toggling expand doesn't shift where the tile
-        // "is" from the user's point of view, it just grows around that spot.
-        const position = {
-          x: base.x - (size.width - NODE_WIDTH) / 2,
-          y: base.y - (size.height - NODE_HEIGHT) / 2,
-        }
+        const { isExpanded, permanent, children, childColumns } = nodeExpandState(n.id, expandedNodeId)
+        const box = boxes.get(n.id)!
         return {
           id: n.id,
           type: 'mapNode',
-          position,
-          width: size.width,
-          height: size.height,
+          position: { x: box.x, y: box.y },
+          width: box.width,
+          height: box.height,
           zIndex: isExpanded ? 10 : 0,
           selected: n.id === selectedNodeId,
           data: {
             label: n.label,
             category: n.category,
             hasChildren: children.length > 0,
+            handles: nodeHandles.get(n.id),
             expanded: isExpanded,
             permanent,
             childColumns,
@@ -130,32 +144,23 @@ function FreeformMapInner({ theme, onExit }: FreeformMapProps) {
           },
         }
       }),
-    [basePositions, expandedNodeId, selectedNodeId],
+    [boxes, expandedNodeId, selectedNodeId, nodeHandles],
   )
 
-  const edges = useMemo<Edge[]>(() => {
-    const byId = new Map(nodes.map((n) => [n.id, n]))
-    function center(n: Node) {
-      return { x: n.position.x + (n.width ?? NODE_WIDTH) / 2, y: n.position.y + (n.height ?? NODE_HEIGHT) / 2 }
-    }
-    return MACRO_EDGES.map((e) => {
-      const sourceNode = byId.get(e.source)
-      const targetNode = byId.get(e.target)
-      const { sourceSide, targetSide } =
-        sourceNode && targetNode ? pickSides(center(sourceNode), center(targetNode)) : { sourceSide: 'bottom', targetSide: 'top' }
-      return {
+  const edges = useMemo<Edge[]>(
+    () =>
+      MACRO_EDGES.map((e) => ({
         id: e.id,
         source: e.source,
         target: e.target,
-        sourceHandle: sourceSide,
-        targetHandle: targetSide,
+        ...edgeAnchors.get(e.id),
         type: 'smoothstep',
         label: e.label,
         style: { stroke: colors.edge, strokeWidth: 1.5 },
         markerEnd: { type: MarkerType.ArrowClosed, color: colors.edge, width: 14, height: 14 },
-      }
-    })
-  }, [nodes, colors.edge])
+      })),
+    [edgeAnchors, colors.edge],
+  )
 
   // React Flow reports drag moves as the *rendered* position - which, for a
   // currently-expanded node, already includes the grow-outward-from-center

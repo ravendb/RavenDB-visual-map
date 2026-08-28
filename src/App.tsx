@@ -141,6 +141,7 @@ export default function App() {
             flowVisitedNodeIds={flow.visitedNodeIds}
             flowVisitedEdgeIds={flow.visitedEdgeIds}
             flowNodeIds={flow.flowNodeIds}
+            flowHighlightChildId={flow.currentHighlightChildId}
             onSelectNode={handleSelectNode}
             onToggleExpand={handleToggleExpand}
             onDeselect={() => setSelectedNodeId(null)}
