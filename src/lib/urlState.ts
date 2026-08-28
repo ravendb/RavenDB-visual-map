@@ -33,9 +33,20 @@ function defaultExpandedFor(nodeId: string | null): string | null {
   return getChildren(nodeId).length > 0 ? nodeId : null
 }
 
+// A leading slash marks a distinct page (currently just FREEFORM_HASH below)
+// rather than a node/flow hash - no real node id contains one, so this can't
+// collide with a genuine shared link.
+export function isPageHash(hash: string): boolean {
+  const raw = hash.startsWith('#') ? hash.slice(1) : hash
+  return raw.startsWith('/')
+}
+
+/** The free-layout drag-and-drop page (see FreeformMap) - the only other "page" this single-page app has. */
+export const FREEFORM_HASH = '#/freeform'
+
 export function parseUrlHash(hash: string): MapUrlState {
   const raw = hash.startsWith('#') ? hash.slice(1) : hash
-  if (!raw) return EMPTY_STATE
+  if (!raw || raw.startsWith('/')) return EMPTY_STATE
   // A bare token with no `=` is the common case - just a node id
   // (`#storage`) - kept free of query-string noise for the shareable URLs
   // this is mainly meant to produce. Anything needing more than one field

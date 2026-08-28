@@ -25,7 +25,8 @@ export const FLOWS: Flow[] = [
     steps: [
       { nodeId: 'client', note: 'The client SDK sends a document change (session.Store + SaveChanges).' },
       { nodeId: 'http', note: 'The HTTP layer routes the write to the right document handler.' },
-      { nodeId: 'documents-core', note: 'DocumentsStorage validates the change; the TransactionMerger batches it with other pending writes.' },
+      { nodeId: 'documents-core', note: 'DocumentsStorage validates the change and hands it to the TransactionMerger.' },
+      { nodeId: 'core-tx-merger', note: 'TransactionMerger batches the write with other pending operations into one shared transaction.' },
       { nodeId: 'storage', note: 'The batch is committed as one Voron transaction and written to the journal.' },
     ],
   },

@@ -5,14 +5,16 @@ import NodeDetailPanel from './components/NodeDetailPanel'
 import Toolbar from './components/Toolbar'
 import FlowPanel from './components/FlowPanel'
 import FlowNavBar from './components/FlowNavBar'
+import FreeformMap from './components/FreeformMap'
 import { getNode } from './data/architecture'
 import { useTheme } from './lib/theme'
 import { useFlowPlayback } from './lib/useFlowPlayback'
-import { buildUrlHash, parseUrlHash, type MapUrlState } from './lib/urlState'
+import { buildUrlHash, FREEFORM_HASH, isPageHash, parseUrlHash, type MapUrlState } from './lib/urlState'
 import './App.css'
 
 export default function App() {
   const [theme, setTheme] = useTheme()
+  const [isFreeform, setIsFreeform] = useState(() => window.location.hash === FREEFORM_HASH)
   const [expandedNodeId, setExpandedNodeId] = useState<string | null>(null)
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [highlightedNodeId, setHighlightedNodeId] = useState<string | null>(null)
@@ -70,7 +72,7 @@ export default function App() {
   }
 
   useEffect(() => {
-    applyUrlState(parseUrlHash(window.location.hash))
+    if (!isPageHash(window.location.hash)) applyUrlState(parseUrlHash(window.location.hash))
     // Restoring from whatever URL the page loaded with is a one-time,
     // mount-only concern - re-running it on every state change would fight
     // the write effect below instead of feeding it.
@@ -79,12 +81,21 @@ export default function App() {
 
   useEffect(() => {
     function onHashChange() {
-      applyUrlState(parseUrlHash(window.location.hash))
+      const hash = window.location.hash
+      setIsFreeform(hash === FREEFORM_HASH)
+      if (!isPageHash(hash)) applyUrlState(parseUrlHash(hash))
     }
     window.addEventListener('hashchange', onHashChange)
     return () => window.removeEventListener('hashchange', onHashChange)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useEffect(() => {
+    // Each step should show its own node's detail, same as clicking that
+    // tile would - not whatever was last selected before the flow started.
+    if (flow.activeFlowId && flow.currentNodeId) focus(flow.currentNodeId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flow.activeFlowId, flow.currentNodeId])
 
   useEffect(() => {
     if (skipNextUrlWriteRef.current) {
@@ -100,6 +111,10 @@ export default function App() {
 
   const breadcrumbLabel = expandedNodeId ? getNode(expandedNodeId)?.label ?? null : null
 
+  if (isFreeform) {
+    return <FreeformMap theme={theme} onExit={() => (window.location.hash = '')} />
+  }
+
   return (
     <div className="app">
       <Toolbar
@@ -112,6 +127,7 @@ export default function App() {
         activeFlowId={flow.activeFlowId}
         onStartFlow={handleStartFlow}
         onStopFlow={flow.stopFlow}
+        onOpenFreeform={() => (window.location.hash = FREEFORM_HASH)}
       />
       <div className="app__body">
         <ReactFlowProvider>

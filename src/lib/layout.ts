@@ -13,26 +13,48 @@ export const MACRO_POSITIONS: Record<string, { x: number; y: number }> = {
   studio: { x: 900, y: 0 },
   // front door
   security: { x: 600, y: 170 },
-  http: { x: 600, y: 340 },
-  // per-database core and what hangs directly off it. Attachments sits a row
-  // higher than the ongoing-task column on the right so the core's edges to
-  // ETL / backup / replication don't have to pass through its card.
-  attachments: { x: 1220, y: 340 },
+  http: { x: 600, y: 300 },
+  // Storages is permanently expanded (see MapNode's `permanent` flag) at 8
+  // children/2 columns, so its card is always ~330 tall (x:441-979,
+  // y:450-782 at the position below), centered at x:710. Its own y is
+  // pushed well past the usual 510 so an edge label between it and the
+  // http row above (e.g. "routes to") has room to sit above its top edge
+  // instead of overlapping the card border.
   sharding: { x: 0, y: 510 },
-  'documents-core': { x: 600, y: 510 },
-  etl: { x: 1260, y: 510 },
-  integrations: { x: 1560, y: 510 },
-  sinks: { x: 1860, y: 510 },
-  // subsystems fed by the core
-  ai: { x: 0, y: 700 },
-  indexing: { x: 300, y: 700 },
-  cluster: { x: 960, y: 700 },
-  backup: { x: 1560, y: 700 },
-  replication: { x: 1560, y: 880 },
-  // engines and the layer everything persists through
-  'search-engines': { x: 300, y: 890 },
-  storage: { x: 800, y: 890 },
-  infra: { x: 800, y: 1070 },
+  'documents-core': { x: 600, y: 570 },
+  integrations: { x: 1830, y: 510 },
+  sinks: { x: 2130, y: 510 },
+  // Queries, Data Subscriptions, ETL and Replication stack in one column
+  // right off Storages' right edge (979) instead of scattered across the
+  // diagram, so all four of Storages' "other side" connections read as one
+  // group at a glance. Rows are the usual 170px apart (not the tighter
+  // 150px first tried) - Storages feeds all four, and the extra room keeps
+  // each connection's own label from crowding its neighbors'.
+  'core-queries': { x: 1060, y: 450 },
+  'core-subscriptions': { x: 1060, y: 620 },
+  etl: { x: 1060, y: 790 },
+  replication: { x: 1060, y: 960 },
+  // subsystems fed by the core - the whole row is nudged down from the
+  // usual 700 to clear Storages' permanently-expanded card (bottom edge at
+  // y:782) with enough margin for an edge label in between, not just the
+  // card's raw height. Cluster is also pushed right, off of Storages'
+  // shared column, so the edges into it (from http and from Storages)
+  // don't bend back across either card on their way there.
+  ai: { x: 0, y: 900 },
+  indexing: { x: 300, y: 900 },
+  // Centered under Storages (x:710) - straight down via "batches writes".
+  'core-tx-merger': { x: 600, y: 900 },
+  cluster: { x: 1350, y: 900 },
+  backup: { x: 1650, y: 900 },
+  // engines and the layer everything persists through - nudged down by the
+  // same amount as the row above, to keep the same relative spacing.
+  // Search Engines is also permanently expanded (2 children: Corax, Lucene),
+  // stacked in a single column via childColumns: 1 (~215 tall, ~280 wide) -
+  // unlike Storages, which keeps the default 2-column grid.
+  'search-engines': { x: 300, y: 1090 },
+  // Centered under TransactionMerger (x:710, same as Storages above it) -
+  // straight down via "commits via".
+  storage: { x: 600, y: 1090 },
 }
 
 const MICRO_COLUMNS = 3

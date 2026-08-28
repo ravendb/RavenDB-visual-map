@@ -124,6 +124,12 @@
   margin-left: auto;
 }
 
+.freeform-badge {
+  font-size: 12px;
+  color: #9aa0c3;
+  white-space: nowrap;
+}
+
 .toolbar__export button {
   background: #192c45;
   color: #f7f5fa;
@@ -266,6 +272,7 @@
 
 .map-node__children {
   display: grid;
+  /* Default column count - overridden inline per node via childColumns (see MapNode.tsx). */
   grid-template-columns: repeat(2, 250px);
   grid-auto-rows: 48px;
   gap: 10px;

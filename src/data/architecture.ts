@@ -21,7 +21,6 @@ export type NodeCategory =
   | 'indexing'
   | 'cluster'
   | 'studio'
-  | 'infra'
   | 'integration'
   | 'security'
 
@@ -64,6 +63,10 @@ export interface MapNode {
   codeRef?: CodeRef
   /** Set for micro nodes that live inside a macro node's drill-down view. */
   parentId?: string
+  /** Set for a macro node whose children are always shown expanded in place - it cannot be collapsed and has no close (x). */
+  permanent?: boolean
+  /** How many columns the expanded children grid uses. Defaults to 2 (a grid); set to 1 to stack children in a single column instead. */
+  childColumns?: number
 }
 
 export interface MapEdge {
@@ -127,11 +130,11 @@ export const nodes: MapNode[] = [
   },
   {
     id: 'documents-core',
-    label: 'Document Database Core',
+    label: 'Storages',
     category: 'server',
-    summary: 'The core per-database engine: documents, revisions, counters, time series, conflicts, subscriptions, queries, patching.',
+    summary: 'The per-database storage subsystems: documents, attachments, revisions, counters, time series, conflicts, refresh and archival.',
     description:
-      'DocumentsStorage and its siblings (CountersStorage, ConflictsStorage, RevisionsStorage, TimeSeriesStorage, ...) sit on top of a Voron storage environment and are what most database operations ultimately touch. Writes do not each open their own Voron write transaction: they are queued through the TransactionMerger, which batches many operations into one transaction - the mechanism the documentation credits for RavenDB\'s write throughput on top of Voron\'s single-writer model. Every write is stamped with a new change vector here, in DocumentsStorage itself, independent of whether replication is even configured - it is the general-purpose causality/versioning primitive the rest of the server builds on: RevisionsStorage keys each revision by it, Subscriptions and ETL use it as their resume checkpoint, and PeriodicBackup compares it to the last backup\'s to decide whether an incremental run has anything new to write.',
+      'Every one of these lives directly on top of a Voron storage environment and is what most database operations ultimately touch - each gets its own micro node here rather than being folded into one generic "storage" box, since they are separate classes with separate on-disk tables and separate size/retention rules. DocumentsStorage is the hub: every write is stamped with a new change vector there, independent of whether replication is even configured - it is the general-purpose causality/versioning primitive the rest of the server builds on, which is why Revisions, Subscriptions, ETL and incremental Backup each key off it.',
     references: {
       docs: [
         { name: 'Documents and Collections', url: 'https://docs.ravendb.net/7.2/studio/database/documents/documents-and-collections' },
@@ -140,30 +143,7 @@ export const nodes: MapNode[] = [
       ],
       source: [{ name: 'src/Raven.Server/Documents', url: githubTreeUrl('src/Raven.Server/Documents') }],
     },
-    codeRef: {
-      file: 'src/Raven.Server/Documents/DocumentsStorage.cs',
-      startLine: 51,
-      expectSymbol: 'class DocumentsStorage',
-    },
-  },
-  {
-    id: 'attachments',
-    label: 'Attachments',
-    category: 'server',
-    summary: 'Binary blobs attached to documents, stored as streams alongside the owning document, plus cross-node "remote attachment" fetch.',
-    description:
-      'AttachmentsStorage keeps attachments in their own Voron table, separately from document JSON, so large binaries do not bloat document reads. An attachment record references its content by hash (AttachmentHashSize = 44), so identical content stored on several documents is kept once. RemoteAttachmentsStorage/RemoteAttachmentsSender and RemoteAttachmentHandler implement cold-storage tiering: an attachment\'s stream can be moved out to external storage (e.g. S3/Azure, typically as part of a backup) and deleted locally, then fetched back on demand by its external identifier instead of staying resident forever.',
-    references: {
-      docs: [
-        { name: 'Attachments', url: 'https://docs.ravendb.net/7.2/document-extensions/attachments/what-are-attachments' },
-        { name: 'Attachments Overview', url: 'https://docs.ravendb.net/7.2/document-extensions/attachments/overview' },
-        { name: 'Configure Remote Attachments', url: 'https://docs.ravendb.net/7.2/document-extensions/attachments/configure-remote-attachments' },
-      ],
-      source: [
-        { name: 'src/Raven.Server/Documents/AttachmentsStorage.cs', url: githubBlobUrl('src/Raven.Server/Documents/AttachmentsStorage.cs') },
-        { name: 'src/Raven.Server/Documents/RemoteAttachmentsStorage.cs', url: githubBlobUrl('src/Raven.Server/Documents/RemoteAttachmentsStorage.cs') },
-      ],
-    },
+    permanent: true,
   },
   {
     id: 'indexing',
@@ -200,6 +180,8 @@ export const nodes: MapNode[] = [
       ],
       source: [{ name: 'src/Corax', url: githubTreeUrl('src/Corax') }],
     },
+    permanent: true,
+    childColumns: 1,
   },
   {
     id: 'ai',
@@ -375,22 +357,6 @@ export const nodes: MapNode[] = [
     },
   },
   {
-    id: 'infra',
-    label: 'Low-level Infra (Sparrow)',
-    category: 'infra',
-    summary: 'Shared low-level building blocks used across the server and storage engine: buffers, memory management, threading primitives, blittable JSON.',
-    description:
-      'Sparrow (and Sparrow.Server) is not a feature area but the foundation the rest of the server is built on - unmanaged memory pooling, the blittable JSON representation in Sparrow/Json, hashing and threading primitives live here because Voron and Raven.Server both depend on them.',
-    references: {
-      docs: [{ name: 'BlittableJsonReaderObject', url: 'https://docs.ravendb.net/7.2/glossary/blittable-json-reader-object' }],
-      source: [{ name: 'src/Sparrow', url: githubTreeUrl('src/Sparrow') }],
-    },
-  },
-
-  // ---------------------------------------------------------------------
-  // Micro nodes: Document Database Core
-  // ---------------------------------------------------------------------
-  {
     id: 'core-tx-merger',
     label: 'TransactionMerger',
     category: 'server',
@@ -408,6 +374,95 @@ export const nodes: MapNode[] = [
       file: 'src/Raven.Server/Documents/TransactionMerger/AbstractTransactionOperationsMerger.cs',
       startLine: 36,
       expectSymbol: 'class AbstractTransactionOperationsMerger',
+    },
+  },
+  {
+    id: 'core-queries',
+    label: 'Queries (RQL)',
+    category: 'server',
+    summary:
+      'Parsing and execution of RQL queries, including projections, facets and includes. AbstractQueryRunner tracks every currently-executing query in a concurrent set, which is what lets the server list or cancel a long-running query while it\'s still running.',
+    references: {
+      docs: [
+        { name: 'Queries (RQL)', url: 'https://docs.ravendb.net/7.2/client-api/session/querying/what-is-rql' },
+        { name: 'Query Overview', url: 'https://docs.ravendb.net/7.2/querying/overview' },
+        { name: 'Query the Database (REST API)', url: 'https://docs.ravendb.net/7.2/client-api/rest-api/queries/query-the-database' },
+      ],
+      source: [{ name: 'src/Raven.Server/Documents/Queries', url: githubTreeUrl('src/Raven.Server/Documents/Queries') }],
+    },
+    codeRef: {
+      file: 'src/Raven.Server/Documents/Queries/AbstractQueryRunner.cs',
+      startLine: 9,
+      expectSymbol: 'class AbstractQueryRunner',
+    },
+  },
+  {
+    id: 'core-subscriptions',
+    label: 'Data Subscriptions',
+    category: 'server',
+    summary:
+      'Server-side, resumable push of matching documents to a worker over a long-lived TCP connection. MaxNumberOfConcurrentConnections is a single database-wide cap (default 1000) shared across every subscription, not a per-subscription limit; SubscriptionStorage raises events as connections open, end, or a batch completes. "Resumable" is change-vector-backed: each acknowledged batch records the change vector it ended on, which is what a worker reconnects from instead of replaying everything.',
+    references: {
+      docs: [
+        { name: 'Data Subscriptions', url: 'https://docs.ravendb.net/7.2/client-api/data-subscriptions/what-are-data-subscriptions' },
+        { name: 'Data Subscription Creation Examples', url: 'https://docs.ravendb.net/7.2/client-api/data-subscriptions/creation/examples/' },
+      ],
+      source: [{ name: 'src/Raven.Server/Documents/Subscriptions', url: githubTreeUrl('src/Raven.Server/Documents/Subscriptions') }],
+    },
+    codeRef: {
+      file: 'src/Raven.Server/Documents/Subscriptions/SubscriptionStorage.cs',
+      startLine: 22,
+      expectSymbol: 'class SubscriptionStorage',
+    },
+  },
+
+  // ---------------------------------------------------------------------
+  // Micro nodes: Storages
+  // ---------------------------------------------------------------------
+  {
+    id: 'core-document',
+    label: 'Document',
+    category: 'server',
+    summary: 'The document read/write core: get, put, delete by id, and the change-vector bookkeeping every write goes through.',
+    description:
+      'DocumentsStorage handles document CRUD directly against Voron and stamps a new change vector on every write, regardless of whether replication is even configured - Revisions keys each stored revision by it, Subscriptions and ETL use it as their resume checkpoint, and Backup compares it to the last run\'s to detect incremental changes.',
+    references: {
+      docs: [
+        { name: 'Documents and Collections', url: 'https://docs.ravendb.net/7.2/studio/database/documents/documents-and-collections' },
+        { name: 'What is a Document Store', url: 'https://docs.ravendb.net/7.2/client-api/what-is-a-document-store' },
+      ],
+      source: [{ name: 'src/Raven.Server/Documents/DocumentsStorage.cs', url: githubBlobUrl('src/Raven.Server/Documents/DocumentsStorage.cs') }],
+    },
+    codeRef: {
+      file: 'src/Raven.Server/Documents/DocumentsStorage.cs',
+      startLine: 51,
+      expectSymbol: 'class DocumentsStorage',
+    },
+    parentId: 'documents-core',
+  },
+  {
+    id: 'core-attachments',
+    label: 'Attachments',
+    category: 'server',
+    summary: 'Binary blobs attached to documents, stored as streams alongside the owning document, plus cross-node "remote attachment" fetch.',
+    description:
+      'AttachmentsStorage keeps attachments in their own Voron table, separately from document JSON, so large binaries do not bloat document reads - every record is keyed by a 44-byte content hash (AttachmentHashSize), so identical content stored on several documents is kept once. RemoteAttachmentsStorage/RemoteAttachmentsSender and RemoteAttachmentHandler implement cold-storage tiering on top of that: an attachment\'s stream can be moved out to external storage (e.g. S3/Azure, typically as part of a backup) and deleted locally, then fetched back on demand by its external identifier instead of staying resident forever - this derives from the same AbstractBackgroundWorkStorage used for document expiration. The in-memory model for a record and its deletion marker (Attachment / tombstone) is a flat set of fields (StorageId, Key, Etag, ChangeVector, content hash, size, stream) - RevisionVersion is only populated on the copy kept for a revision, not on the live document\'s.',
+    references: {
+      docs: [
+        { name: 'Attachments Overview', url: 'https://docs.ravendb.net/7.2/document-extensions/attachments/overview' },
+        { name: 'Store Attachments Locally (Deduplication)', url: 'https://docs.ravendb.net/7.2/document-extensions/attachments/store-attachments/store-attachments-local' },
+        { name: 'Store Attachments Remotely', url: 'https://docs.ravendb.net/7.2/document-extensions/attachments/store-attachments/store-attachments-remote' },
+      ],
+      source: [
+        { name: 'src/Raven.Server/Documents/AttachmentsStorage.cs', url: githubBlobUrl('src/Raven.Server/Documents/AttachmentsStorage.cs') },
+        { name: 'src/Raven.Server/Documents/RemoteAttachmentsStorage.cs', url: githubBlobUrl('src/Raven.Server/Documents/RemoteAttachmentsStorage.cs') },
+        { name: 'src/Raven.Server/Documents/Attachment.cs', url: githubBlobUrl('src/Raven.Server/Documents/Attachment.cs') },
+      ],
+    },
+    codeRef: {
+      file: 'src/Raven.Server/Documents/AttachmentsStorage.cs',
+      startLine: 52,
+      expectSymbol: 'class AttachmentsStorage',
     },
     parentId: 'documents-core',
   },
@@ -472,64 +527,66 @@ export const nodes: MapNode[] = [
     parentId: 'documents-core',
   },
   {
-    id: 'core-subscriptions',
-    label: 'Data Subscriptions',
+    id: 'core-conflicts',
+    label: 'Conflicts',
     category: 'server',
-    summary:
-      'Server-side, resumable push of matching documents to a worker over a long-lived TCP connection. MaxNumberOfConcurrentConnections is a single database-wide cap (default 1000) shared across every subscription, not a per-subscription limit; SubscriptionStorage raises events as connections open, end, or a batch completes. "Resumable" is change-vector-backed: each acknowledged batch records the change vector it ended on, which is what a worker reconnects from instead of replaying everything.',
+    summary: 'Persists the competing document versions RavenDB keeps on disk when two nodes changed the same document concurrently and no automatic resolution has run yet.',
+    description:
+      'ConflictsStorage owns a dedicated Voron table (ConflictsSchema) holding every unresolved version of a conflicted document, tracked via the ConflictsCount field; AddConflict writes an incoming version alongside the existing one instead of overwriting it, and GetConflictsFor/GetAllConflictsBySameId read them back for Studio or resolution logic. It is distinct from ConflictManager (under Replication), which decides whether and how to resolve a conflict and then calls into ConflictsStorage to persist the outcome - this is the storage layer, ConflictManager is the policy layer built on top of it.',
     references: {
       docs: [
-        { name: 'Data Subscriptions', url: 'https://docs.ravendb.net/7.2/client-api/data-subscriptions/what-are-data-subscriptions' },
-        { name: 'Data Subscription Creation Examples', url: 'https://docs.ravendb.net/7.2/client-api/data-subscriptions/creation/examples/' },
+        { name: 'Replication Conflicts', url: 'https://docs.ravendb.net/7.2/server/clustering/replication/replication-conflicts' },
+        { name: 'Change Vector', url: 'https://docs.ravendb.net/7.2/server/clustering/replication/change-vector' },
       ],
-      source: [{ name: 'src/Raven.Server/Documents/Subscriptions', url: githubTreeUrl('src/Raven.Server/Documents/Subscriptions') }],
+      source: [{ name: 'src/Raven.Server/Documents/ConflictsStorage.cs', url: githubBlobUrl('src/Raven.Server/Documents/ConflictsStorage.cs') }],
     },
     codeRef: {
-      file: 'src/Raven.Server/Documents/Subscriptions/SubscriptionStorage.cs',
-      startLine: 22,
-      expectSymbol: 'class SubscriptionStorage',
+      file: 'src/Raven.Server/Documents/ConflictsStorage.cs',
+      startLine: 33,
+      expectSymbol: 'class ConflictsStorage',
     },
     parentId: 'documents-core',
   },
   {
-    id: 'core-queries',
-    label: 'Queries (RQL)',
+    id: 'core-refresh',
+    label: 'Refresh',
     category: 'server',
-    summary:
-      'Parsing and execution of RQL queries, including projections, facets and includes. AbstractQueryRunner tracks every currently-executing query in a concurrent set, which is what lets the server list or cancel a long-running query while it\'s still running.',
+    summary: 'Periodically re-writes a document once its @refresh metadata time has passed, bumping its change vector without changing its data.',
+    description:
+      'RefreshStorage derives from the same DocumentBackgroundWorkStorage base as Expiration and Archival, and drives documents through the DocumentsByRefresh tree keyed on the @refresh metadata property. ProcessDocument checks whether that time has passed, strips the @refresh tag, then calls DocumentsStorage.Put with the same content - the point is a fresh change vector and etag, not a content change, so anything watching for updates (indexes, subscriptions, ETL) re-triggers on it. A still-conflicted document is only treated as refreshed once every conflicted copy has itself passed its refresh time.',
     references: {
       docs: [
-        { name: 'Queries (RQL)', url: 'https://docs.ravendb.net/7.2/client-api/session/querying/what-is-rql' },
-        { name: 'Query Overview', url: 'https://docs.ravendb.net/7.2/querying/overview' },
-        { name: 'Query the Database (REST API)', url: 'https://docs.ravendb.net/7.2/client-api/rest-api/queries/query-the-database' },
+        { name: 'Document Refresh', url: 'https://docs.ravendb.net/7.2/server/extensions/refresh' },
+        { name: 'Document Refresh (Studio)', url: 'https://docs.ravendb.net/7.2/studio/database/settings/document-refresh' },
       ],
-      source: [{ name: 'src/Raven.Server/Documents/Queries', url: githubTreeUrl('src/Raven.Server/Documents/Queries') }],
+      source: [{ name: 'src/Raven.Server/Documents/Refresh', url: githubTreeUrl('src/Raven.Server/Documents/Refresh') }],
     },
     codeRef: {
-      file: 'src/Raven.Server/Documents/Queries/AbstractQueryRunner.cs',
-      startLine: 9,
-      expectSymbol: 'class AbstractQueryRunner',
+      file: 'src/Raven.Server/Documents/Refresh/RefreshStorage.cs',
+      startLine: 15,
+      expectSymbol: 'class RefreshStorage',
     },
     parentId: 'documents-core',
   },
   {
-    id: 'core-patch',
-    label: 'Patch (JavaScript)',
+    id: 'core-archival',
+    label: 'Archival',
     category: 'server',
-    summary:
-      'Server-side document modification by running a JavaScript patch script inside the write transaction. ScriptRunner pools a Jint JavaScript engine per script behind a Holder that can fall back to a weak reference under memory pressure, so a patch doesn\'t pay the engine\'s start-up cost on every run.',
+    summary: 'Marks documents past their scheduled @archive-at time as archived, so other subsystems, like indexing, can skip them.',
+    description:
+      'DataArchivalStorage walks the DocumentsByArchiveAtDateTime tree keyed on the @archive-at metadata property; once a document\'s time has passed, it sets the Archived metadata flag, removes @archive-at, and ORs in DocumentFlags.Archived before writing the document back - unlike Refresh and Expiration it explicitly ignores conflicts. DataArchivist is the background loop: it wakes every ArchiveFrequencyInSec (default 60s), pulls a batch from DataArchivalStorage, and applies it transactionally through ArchiveDocumentsCommand.',
     references: {
       docs: [
-        { name: 'Single Document Patch Operations', url: 'https://docs.ravendb.net/7.2/client-api/operations/patching/single-document' },
-        { name: 'Set-Based Patch Operations', url: 'https://docs.ravendb.net/7.2/client-api/operations/patching/set-based' },
-        { name: 'JavaScript Engine (Jint)', url: 'https://docs.ravendb.net/7.2/server/kb/javascript-engine' },
+        { name: 'Data Archival: Overview', url: 'https://docs.ravendb.net/7.2/data-archival/overview' },
+        { name: 'Data Archival: Schedule Document Archiving', url: 'https://docs.ravendb.net/7.2/data-archival/schedule-document-archiving' },
+        { name: 'Data Archival and Other Features', url: 'https://docs.ravendb.net/7.2/data-archival/archived-documents-and-other-features' },
       ],
-      source: [{ name: 'src/Raven.Server/Documents/Patch', url: githubTreeUrl('src/Raven.Server/Documents/Patch') }],
+      source: [{ name: 'src/Raven.Server/Documents/DataArchival', url: githubTreeUrl('src/Raven.Server/Documents/DataArchival') }],
     },
     codeRef: {
-      file: 'src/Raven.Server/Documents/Patch/ScriptRunner.cs',
-      startLine: 51,
-      expectSymbol: 'class ScriptRunner',
+      file: 'src/Raven.Server/Documents/DataArchival/DataArchivalStorage.cs',
+      startLine: 13,
+      expectSymbol: 'class DataArchivalStorage',
     },
     parentId: 'documents-core',
   },
@@ -618,72 +675,6 @@ export const nodes: MapNode[] = [
     },
     codeRef: { file: 'src/Voron/Slice.cs', startLine: 14, expectSymbol: 'struct Slice' },
     parentId: 'storage',
-  },
-
-  // ---------------------------------------------------------------------
-  // Micro nodes: Attachments
-  // ---------------------------------------------------------------------
-  {
-    id: 'attachments-storage',
-    label: 'AttachmentsStorage',
-    category: 'server',
-    summary:
-      'Core read/write logic for attachment streams, backed by a Voron table and content hashes. Every attachment record is keyed by a 44-byte content hash (AttachmentHashSize), which is exactly what lets several documents share one stored copy of identical content.',
-    references: {
-      docs: [
-        { name: 'Store Attachments Locally (Deduplication)', url: 'https://docs.ravendb.net/7.2/document-extensions/attachments/store-attachments/store-attachments-local' },
-        { name: 'Get Attachments', url: 'https://docs.ravendb.net/7.2/document-extensions/attachments/get-attachments' },
-        { name: 'Attachments Overview', url: 'https://docs.ravendb.net/7.2/document-extensions/attachments/overview' },
-      ],
-      source: [{ name: 'src/Raven.Server/Documents/AttachmentsStorage.cs', url: githubBlobUrl('src/Raven.Server/Documents/AttachmentsStorage.cs') }],
-    },
-    codeRef: {
-      file: 'src/Raven.Server/Documents/AttachmentsStorage.cs',
-      startLine: 52,
-      expectSymbol: 'class AttachmentsStorage',
-    },
-    parentId: 'attachments',
-  },
-  {
-    id: 'attachments-remote-storage',
-    label: 'Remote Attachments Storage',
-    category: 'server',
-    summary:
-      'Fetches an attachment stream back from external cold storage (e.g. S3/Azure, after it was tiered out during a backup) on demand, instead of keeping every attachment resident locally forever. It derives from the same AbstractBackgroundWorkStorage used for document expiration, and walks each document\'s metadata to find attachments still flagged as remote rather than fetched.',
-    references: {
-      docs: [
-        { name: 'Store Attachments Remotely', url: 'https://docs.ravendb.net/7.2/document-extensions/attachments/store-attachments/store-attachments-remote' },
-        { name: 'Configure Remote Attachments', url: 'https://docs.ravendb.net/7.2/document-extensions/attachments/configure-remote-attachments' },
-        { name: 'Get Attachments', url: 'https://docs.ravendb.net/7.2/document-extensions/attachments/get-attachments' },
-      ],
-      source: [{ name: 'src/Raven.Server/Documents/RemoteAttachmentsStorage.cs', url: githubBlobUrl('src/Raven.Server/Documents/RemoteAttachmentsStorage.cs') }],
-    },
-    codeRef: {
-      file: 'src/Raven.Server/Documents/RemoteAttachmentsStorage.cs',
-      startLine: 38,
-      expectSymbol: 'class RemoteAttachmentsStorage',
-    },
-    parentId: 'attachments',
-  },
-  {
-    id: 'attachments-model',
-    label: 'Attachment / Tombstone',
-    category: 'server',
-    summary:
-      'The in-memory model for an attachment record and its deletion marker (tombstone). The model is a flat set of fields (StorageId, Key, Etag, ChangeVector, content hash, size, stream) - RevisionVersion is only populated on the copy kept for a revision, not on the live document\'s.',
-    references: {
-      docs: [
-        { name: 'Attachments Overview', url: 'https://docs.ravendb.net/7.2/document-extensions/attachments/overview' },
-        { name: 'Store Attachments Locally', url: 'https://docs.ravendb.net/7.2/document-extensions/attachments/store-attachments/store-attachments-local' },
-      ],
-      source: [{ name: 'src/Raven.Server/Documents/Attachment.cs', url: githubBlobUrl('src/Raven.Server/Documents/Attachment.cs') }],
-    },
-    codeRef: {
-      file: 'src/Raven.Server/Documents/Attachment.cs',
-      startLine: 8,
-      expectSymbol: 'class Attachment',
-    },
-    parentId: 'attachments',
   },
 
   // ---------------------------------------------------------------------
@@ -922,37 +913,18 @@ export const nodes: MapNode[] = [
   // Micro nodes: Search engines
   // ---------------------------------------------------------------------
   {
-    id: 'corax-analyzers',
-    label: 'Corax: Analyzers',
+    id: 'search-engines-corax',
+    label: 'Corax',
     category: 'indexing',
     summary:
-      'Tokenization and text analysis applied to field values before they are indexed. Analyzer composes a tokenizer with one or more transformers (e.g. lower-casing); CreateDefaultAnalyzer and CreateLowercaseAnalyzer are the two built-in presets most Corax fields fall back to.',
-    references: {
-      docs: [
-        { name: 'Indexes: Analyzers', url: 'https://docs.ravendb.net/7.2/indexes/using-analyzers' },
-        { name: 'Search Engine: Corax', url: 'https://docs.ravendb.net/7.2/indexes/search-engine/corax' },
-      ],
-      source: [{ name: 'src/Corax/Analyzers', url: githubTreeUrl('src/Corax/Analyzers') }],
-    },
-    codeRef: {
-      file: 'src/Corax/Analyzers/Analyzer.cs',
-      startLine: 12,
-      expectSymbol: 'class Analyzer',
-    },
-    parentId: 'search-engines',
-  },
-  {
-    id: 'corax-indexing',
-    label: 'Corax: Indexing',
-    category: 'indexing',
-    summary:
-      'Builds and maintains the inverted index as entries are added, updated and deleted. It\'s explicitly single-threaded and caller-synchronized rather than internally locked, and keeps a separate fixed-size tree just to cache per-document boost values applied during indexing.',
+      'The in-house engine. Analyzer composes a tokenizer (ITokenizer) with transformers like lower-casing in a staged pipeline that can resume tokenization across steps; IndexWriter then builds the inverted index - explicitly single-threaded and caller-synchronized rather than internally locked - while IndexFieldsMapping resolves each field by Slice, string or integer id. IndexSearcher executes queries against that index, switching to a bitmap representation once a term\'s postings cross a 32MB threshold, trading memory for faster set operations.',
     references: {
       docs: [
         { name: 'Search Engine: Corax', url: 'https://docs.ravendb.net/7.2/indexes/search-engine/corax' },
         { name: 'Indexing Basics', url: 'https://docs.ravendb.net/7.2/indexes/indexing-basics' },
+        { name: 'Query Overview', url: 'https://docs.ravendb.net/7.2/querying/overview' },
       ],
-      source: [{ name: 'src/Corax/Indexing', url: githubTreeUrl('src/Corax/Indexing') }],
+      source: [{ name: 'src/Corax', url: githubTreeUrl('src/Corax') }],
     },
     codeRef: {
       file: 'src/Corax/Indexing/IndexWriter.cs',
@@ -962,100 +934,26 @@ export const nodes: MapNode[] = [
     parentId: 'search-engines',
   },
   {
-    id: 'corax-querying',
-    label: 'Corax: Querying',
+    id: 'search-engines-lucene',
+    label: 'Lucene',
     category: 'indexing',
     summary:
-      'Executes queries against the inverted index and returns matching entries. IndexSearcher switches to a bitmap representation once a term\'s postings cross a 32MB threshold, trading memory for faster AND/OR set operations on very common terms.',
-    references: {
-      docs: [
-        { name: 'Search Engine: Corax', url: 'https://docs.ravendb.net/7.2/indexes/search-engine/corax' },
-        { name: 'Query Overview', url: 'https://docs.ravendb.net/7.2/querying/overview' },
-      ],
-      source: [{ name: 'src/Corax/Querying', url: githubTreeUrl('src/Corax/Querying') }],
-    },
-    codeRef: {
-      file: 'src/Corax/Querying/IndexSearcher.cs',
-      startLine: 31,
-      expectSymbol: 'class IndexSearcher',
-    },
-    parentId: 'search-engines',
-  },
-  {
-    id: 'corax-pipeline',
-    label: 'Corax: Pipeline',
-    category: 'indexing',
-    summary:
-      'The staged token processing pipeline (tokenizers and transformers) data passes through. ITokenizer\'s single Tokenize method reports back how many bytes of the input it actually consumed - the hook that lets multi-step tokenization resume where the previous step left off.',
-    references: {
-      docs: [
-        { name: 'Indexes: Analyzers', url: 'https://docs.ravendb.net/7.2/indexes/using-analyzers' },
-        { name: 'Search Engine: Corax', url: 'https://docs.ravendb.net/7.2/indexes/search-engine/corax' },
-      ],
-      source: [{ name: 'src/Corax/Pipeline', url: githubTreeUrl('src/Corax/Pipeline') }],
-    },
-    codeRef: {
-      file: 'src/Corax/Pipeline/ITokenizer.cs',
-      startLine: 5,
-      expectSymbol: 'interface ITokenizer',
-    },
-    parentId: 'search-engines',
-  },
-  {
-    id: 'corax-mappings',
-    label: 'Corax: Mappings',
-    category: 'indexing',
-    summary:
-      'Field-to-index mapping and schema definitions for what gets indexed and how. IndexFieldsMapping resolves a field by Slice, by string, or by an integer id through three parallel dictionaries, and also carries the default, search and exact Analyzer instances a field falls back to.',
-    references: {
-      docs: [
-        { name: 'Storing Data in Index', url: 'https://docs.ravendb.net/7.2/indexes/storing-data-in-index/' },
-        { name: 'Dynamic Index Fields', url: 'https://docs.ravendb.net/7.2/indexes/using-dynamic-fields' },
-      ],
-      source: [{ name: 'src/Corax/Mappings', url: githubTreeUrl('src/Corax/Mappings') }],
-    },
-    codeRef: {
-      file: 'src/Corax/Mappings/IndexFieldsMapping.cs',
-      startLine: 11,
-      expectSymbol: 'class IndexFieldsMapping',
-    },
-    parentId: 'search-engines',
-  },
-  {
-    id: 'lucene-persistence',
-    label: 'Lucene: index persistence',
-    category: 'indexing',
-    summary:
-      'The Lucene backend of an index: writers, readers, analyzer adapters, faceted and suggestion reads. It layers Lucene\'s own IndexWriter and per-field suggestion writers on top of a LuceneVoronDirectory, so a Lucene-backed index still persists through Voron rather than the OS filesystem.',
+      'The older, still fully supported engine. LuceneIndexPersistence layers Lucene\'s own IndexWriter and per-field suggestion writers on top of LuceneVoronDirectory, Lucene\'s Directory implementation on Voron, which refuses to be constructed outside a write transaction - so a Lucene-backed index still persists transactionally through Voron rather than the OS filesystem.',
     references: {
       docs: [
         { name: 'Indexes: Term Vectors', url: 'https://docs.ravendb.net/7.2/indexes/using-term-vectors' },
         { name: 'Filter with Lucene Syntax', url: 'https://docs.ravendb.net/7.2/querying/filtering-query-results/filter-with-lucene-syntax' },
         { name: 'Query by Facets', url: 'https://docs.ravendb.net/7.2/indexes/querying/faceted-search' },
       ],
-      source: [{ name: 'src/Raven.Server/Documents/Indexes/Persistence/Lucene', url: githubTreeUrl('src/Raven.Server/Documents/Indexes/Persistence/Lucene') }],
+      source: [
+        { name: 'src/Raven.Server/Documents/Indexes/Persistence/Lucene', url: githubTreeUrl('src/Raven.Server/Documents/Indexes/Persistence/Lucene') },
+        { name: 'src/Raven.Server/Indexing', url: githubTreeUrl('src/Raven.Server/Indexing') },
+      ],
     },
     codeRef: {
       file: 'src/Raven.Server/Documents/Indexes/Persistence/Lucene/LuceneIndexPersistence.cs',
       startLine: 38,
       expectSymbol: 'class LuceneIndexPersistence',
-    },
-    parentId: 'search-engines',
-  },
-  {
-    id: 'lucene-voron-directory',
-    label: 'Lucene: VoronDirectory',
-    category: 'indexing',
-    summary:
-      'Lucene\'s Directory implemented on top of Voron, so Lucene indexes are stored transactionally too. LuceneVoronDirectory refuses to be constructed outside a write transaction, and tracks how many bytes of Lucene-managed native allocations are currently outstanding for the index.',
-    references: {
-      docs: [{ name: 'Storage Engine (Voron)', url: 'https://docs.ravendb.net/7.2/server/storage/storage-engine/' }],
-      source: [{ name: 'src/Raven.Server/Indexing', url: githubTreeUrl('src/Raven.Server/Indexing') }],
-    },
-    codeRef: {
-      file: 'src/Raven.Server/Indexing/LuceneVoronDirectory.cs',
-      startLine: 15,
-      expectSymbol: 'class LuceneVoronDirectory',
     },
     parentId: 'search-engines',
   },
@@ -1626,14 +1524,12 @@ export const edges: MapEdge[] = [
   { id: 'sharding-documents', source: 'sharding', target: 'documents-core', label: 'per-shard requests' },
   { id: 'http-documents', source: 'http', target: 'documents-core', label: 'routes to' },
   { id: 'http-cluster', source: 'http', target: 'cluster', label: 'server-to-server' },
-  { id: 'documents-attachments', source: 'documents-core', target: 'attachments' },
   { id: 'documents-indexing', source: 'documents-core', target: 'indexing', label: 'feeds' },
-  { id: 'indexing-engines', source: 'indexing', target: 'search-engines', label: 'Corax or Lucene' },
+  { id: 'indexing-engines', source: 'indexing', target: 'search-engines', label: 'written through' },
   { id: 'documents-ai', source: 'documents-core', target: 'ai', label: 'embeddings tasks' },
   { id: 'ai-indexing', source: 'ai', target: 'indexing', label: 'vector fields' },
   { id: 'documents-storage', source: 'documents-core', target: 'storage', label: 'persists via' },
   { id: 'engines-storage', source: 'search-engines', target: 'storage', label: 'persists via' },
-  { id: 'attachments-storage-edge', source: 'attachments', target: 'storage', label: 'persists via' },
   { id: 'cluster-storage', source: 'cluster', target: 'storage', label: 'ACID Raft log' },
   { id: 'documents-etl', source: 'documents-core', target: 'etl', label: 'change feed' },
   { id: 'sinks-documents', source: 'sinks', target: 'documents-core', label: 'writes documents' },
@@ -1641,8 +1537,11 @@ export const edges: MapEdge[] = [
   { id: 'documents-replication', source: 'documents-core', target: 'replication', label: 'change feed' },
   { id: 'documents-backup', source: 'documents-core', target: 'backup', label: 'ongoing task' },
   { id: 'documents-cluster', source: 'documents-core', target: 'cluster', label: 'cluster-wide ops' },
-  { id: 'storage-infra', source: 'storage', target: 'infra', label: 'built on' },
-  { id: 'documents-infra', source: 'documents-core', target: 'infra', label: 'built on' },
+  { id: 'documents-tx-merger', source: 'documents-core', target: 'core-tx-merger', label: 'batches writes' },
+  { id: 'tx-merger-storage', source: 'core-tx-merger', target: 'storage', label: 'commits via' },
+  { id: 'http-queries', source: 'http', target: 'core-queries', label: 'routes to' },
+  { id: 'queries-documents', source: 'core-queries', target: 'documents-core', label: 'reads via' },
+  { id: 'documents-subscriptions', source: 'documents-core', target: 'core-subscriptions', label: 'change feed' },
 ]
 
 export function getChildren(nodeId: string): MapNode[] {
