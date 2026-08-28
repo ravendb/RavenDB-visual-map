@@ -124,6 +124,12 @@
   margin-left: auto;
 }
 
+.freeform-badge {
+  font-size: 12px;
+  color: #9aa0c3;
+  white-space: nowrap;
+}
+
 .toolbar__export button {
   background: #192c45;
   color: #f7f5fa;

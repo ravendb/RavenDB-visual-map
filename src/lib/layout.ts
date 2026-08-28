@@ -30,10 +30,10 @@ export const MACRO_POSITIONS: Record<string, { x: number; y: number }> = {
   // group at a glance. Rows are the usual 170px apart (not the tighter
   // 150px first tried) - Storages feeds all four, and the extra room keeps
   // each connection's own label from crowding its neighbors'.
-  'core-queries': { x: 1020, y: 450 },
-  'core-subscriptions': { x: 1020, y: 620 },
-  etl: { x: 1020, y: 790 },
-  replication: { x: 1020, y: 960 },
+  'core-queries': { x: 1060, y: 450 },
+  'core-subscriptions': { x: 1060, y: 620 },
+  etl: { x: 1060, y: 790 },
+  replication: { x: 1060, y: 960 },
   // subsystems fed by the core - the whole row is nudged down from the
   // usual 700 to clear Storages' permanently-expanded card (bottom edge at
   // y:782) with enough margin for an edge label in between, not just the
