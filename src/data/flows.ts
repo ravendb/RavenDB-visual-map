@@ -20,7 +20,7 @@ export interface Flow {
 export const FLOWS: Flow[] = [
   {
     id: 'document-write',
-    label: 'Document write & persistence',
+    label: 'Write a document',
     description: 'The core path a plain document write takes to reach durable storage.',
     steps: [
       { nodeId: 'client', note: 'The client SDK sends a document change (session.Store + SaveChanges).' },
@@ -31,16 +31,46 @@ export const FLOWS: Flow[] = [
     ],
   },
   {
-    id: 'auto-indexing',
-    label: 'Auto-indexing on write',
-    description: 'How a document change makes it from the client into a searchable index.',
+    id: 'document-write-attachment',
+    label: 'Write a document with an attachment',
+    description: 'The same write path, plus what changes when the document carries a binary attachment.',
     steps: [
-      { nodeId: 'client', note: 'The client SDK sends a document change (session.Store + SaveChanges).' },
+      { nodeId: 'client', note: 'The client SDK sends the document change together with the attachment stream (session.Advanced.Attachments.Store).' },
       { nodeId: 'http', note: 'The HTTP layer routes the write to the right document handler.' },
-      { nodeId: 'documents-core', note: 'DocumentsStorage persists the change and bumps the etag the indexes follow.' },
-      { nodeId: 'indexing', note: 'The index worker picks the change up; a query with no matching index gets an auto-index created for it first.' },
-      { nodeId: 'search-engines', note: 'The index is written through its search engine - Corax or Lucene, depending on configuration and license default.' },
-      { nodeId: 'storage', note: 'The updated index pages are persisted through the Voron storage engine.' },
+      {
+        nodeId: 'documents-core',
+        note: "DocumentsStorage writes the document JSON as usual; AttachmentsStorage stores the binary separately, keyed by a content hash - so identical attachments stored on several documents are kept once, not duplicated.",
+      },
+      { nodeId: 'core-tx-merger', note: 'The document PUT and the attachment PUT are batched into the same shared transaction, so both commit atomically or not at all.' },
+      { nodeId: 'storage', note: 'Document, attachment, and hash-reference all commit in the one Voron transaction and are written to the journal together.' },
+    ],
+  },
+  {
+    id: 'query-index',
+    label: 'Query an existing index',
+    description: 'The path a query takes when it matches an index that already exists.',
+    steps: [
+      { nodeId: 'client', note: 'The client SDK sends an RQL query (session.Query<T>() or a raw query).' },
+      { nodeId: 'http', note: 'The HTTP layer routes the request to the query handler.' },
+      { nodeId: 'core-queries', note: 'AbstractQueryRunner parses the RQL and matches it against an existing static or auto-index - no new index is needed.' },
+      { nodeId: 'documents-core', note: 'The database hands the parsed query to IndexStore to run it against the matched index.' },
+      { nodeId: 'indexing', note: 'The matched index is already up to date, so the query can be answered from it immediately.' },
+      { nodeId: 'search-engines', note: 'Corax or Lucene executes the query against the index and returns the matching entries.' },
+      { nodeId: 'storage', note: "The index's pages are read back from Voron to build the result." },
+    ],
+  },
+  {
+    id: 'auto-indexing',
+    label: 'Query with no matching index (auto-indexing)',
+    description: 'How a query that matches no existing index gets one created for it on the fly.',
+    steps: [
+      { nodeId: 'client', note: 'The client SDK sends an RQL query shaped in a way no existing index covers.' },
+      { nodeId: 'http', note: 'The HTTP layer routes the request to the query handler.' },
+      { nodeId: 'core-queries', note: "AbstractQueryRunner parses the RQL and finds no static or auto-index that already matches it." },
+      { nodeId: 'documents-core', note: 'The database hands the query to IndexStore, which creates a new auto-index definition for exactly this query shape, on demand.' },
+      { nodeId: 'indexing', note: "The new auto-index runs its initial indexing pass over the collection's existing documents before the query can be answered from it." },
+      { nodeId: 'search-engines', note: 'The auto-index is written through Corax or Lucene like any other index, static or automatic.' },
+      { nodeId: 'storage', note: "The new index's pages are persisted through Voron as it catches up." },
     ],
   },
   {
