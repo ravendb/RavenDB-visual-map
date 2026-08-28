@@ -19,7 +19,10 @@ export const MACRO_POSITIONS: Record<string, { x: number; y: number }> = {
   // so the two columns read as matching horizontal rows, not just as
   // independently-spaced stacks.
   sharding: { x: 50, y: 280 },
-  ai: { x: 50, y: 430 },
+  // y:450 (not 430, like its row partners) lines its center up with the
+  // Storages handle "embeddings tasks" actually exits from, so that edge
+  // runs dead straight instead of stepping down to meet it.
+  ai: { x: 50, y: 450 },
   'vector-search': { x: 50, y: 585 },
   indexing: { x: 50, y: 740 },
   // Search Engines is permanently expanded (2 children: Corax, Lucene),
@@ -52,7 +55,7 @@ export const MACRO_POSITIONS: Record<string, { x: number; y: number }> = {
   'core-subscriptions': { x: 1260, y: 430 },
   etl: { x: 1260, y: 585 },
   sinks: { x: 1260, y: 740 },
-  integrations: { x: 1260, y: 860 },
+  integrations: { x: 1260, y: 920 },
 }
 
 const MICRO_COLUMNS = 3
