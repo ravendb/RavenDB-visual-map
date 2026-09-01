@@ -53,9 +53,12 @@ interface GraphViewProps {
   flowVisitedEdgeIds: Set<string>
   flowNodeIds: Set<string>
   flowHighlightChildId: string | null
+  selectedEdgeId: string | null
   onSelectNode: (id: string) => void
   onToggleExpand: (id: string) => void
   onDeselect: () => void
+  onSelectEdge: (id: string) => void
+  onDeselectEdge: () => void
 }
 
 function nodeCenter(pos: { x: number; y: number }) {
@@ -105,7 +108,9 @@ function buildFlowElements(
   flowVisitedEdgeIds: Set<string>,
   flowNodeIds: Set<string>,
   flowHighlightChildId: string | null,
+  selectedEdgeId: string | null,
 ): { flowNodes: Node<MapNodeData>[]; flowEdges: Edge[] } {
+  const selectedEdge = selectedEdgeId ? allEdges.find((e) => e.id === selectedEdgeId) : undefined
   function flowState(id: string): 'current' | 'visited' | undefined {
     if (id === flowCurrentNodeId) return 'current'
     if (flowVisitedNodeIds.has(id)) return 'visited'
@@ -147,10 +152,20 @@ function buildFlowElements(
         permanent,
         childColumns,
         // Push everything but the expanded node - or, during a flow, everything
-        // the flow doesn't touch - into the background, like a spotlight.
-        // Permanent nodes are exempt: they stay in focus regardless of what
-        // else is expanded, the same way they're never the thing being dimmed.
-        dimmed: expandedNodeId ? n.id !== expandedNodeId && !permanent : isFlowActive && !flowNodeIds.has(n.id),
+        // the flow doesn't touch - into the background, like a spotlight. A
+        // selected edge does the same for its own two endpoints, taking
+        // priority over the other two (mutually exclusive - see App.tsx) and,
+        // unlike the other two spotlights, not exempting permanent nodes -
+        // Storages should dim like anything else when it isn't one of the
+        // two tiles this particular connection is actually about.
+        // Permanent nodes are otherwise exempt: they stay in focus regardless
+        // of what else is expanded, the same way they're never the thing
+        // being dimmed.
+        dimmed: selectedEdge
+          ? n.id !== selectedEdge.source && n.id !== selectedEdge.target
+          : expandedNodeId
+            ? n.id !== expandedNodeId && !permanent
+            : isFlowActive && !flowNodeIds.has(n.id),
         selectedChildId: isExpanded ? selectedNodeId ?? undefined : undefined,
         // Only the step's own current node lights up its named child - not every
         // node the flow happens to also visit at other steps.
@@ -174,16 +189,20 @@ function buildFlowElements(
     // it actually connects.
     const targetCategory = getNode(e.target)?.category
     const edgeColor = isFlowEdge ? FLOW_ACCENT : targetCategory ? CATEGORY_COLORS[targetCategory] : colors.edge
-    // Mirrors the node dimming above: with a node expanded, only edges
-    // touching it stay in focus; with a flow playing, only edges that connect
-    // two nodes the flow actually visits do.
-    const inFocus = expandedNodeId
-      ? e.source === expandedNodeId || e.target === expandedNodeId
-      : !isFlowActive || (flowNodeIds.has(e.source) && flowNodeIds.has(e.target))
+    // Mirrors the node dimming above: with an edge selected, only that one
+    // edge stays in focus; with a node expanded, only edges touching it do;
+    // with a flow playing, only edges that connect two nodes the flow
+    // actually visits do.
+    const inFocus = selectedEdge
+      ? e.id === selectedEdge.id
+      : expandedNodeId
+        ? e.source === expandedNodeId || e.target === expandedNodeId
+        : !isFlowActive || (flowNodeIds.has(e.source) && flowNodeIds.has(e.target))
     return {
       id: e.id,
       source: e.source,
       target: e.target,
+      selected: e.id === selectedEdgeId,
       ...edgeAnchors.get(e.id),
       type: 'smoothstep',
       label: e.label,
@@ -217,9 +236,12 @@ const GraphView = forwardRef<HTMLDivElement, GraphViewProps>(function GraphView(
     flowVisitedEdgeIds,
     flowNodeIds,
     flowHighlightChildId,
+    selectedEdgeId,
     onSelectNode,
     onToggleExpand,
     onDeselect,
+    onSelectEdge,
+    onDeselectEdge,
   },
   ref,
 ) {
@@ -234,11 +256,22 @@ const GraphView = forwardRef<HTMLDivElement, GraphViewProps>(function GraphView(
         flowVisitedEdgeIds,
         flowNodeIds,
         flowHighlightChildId,
+        selectedEdgeId,
       ),
-    [expandedNodeId, selectedNodeId, theme, flowCurrentNodeId, flowVisitedNodeIds, flowVisitedEdgeIds, flowNodeIds, flowHighlightChildId],
+    [
+      expandedNodeId,
+      selectedNodeId,
+      theme,
+      flowCurrentNodeId,
+      flowVisitedNodeIds,
+      flowVisitedEdgeIds,
+      flowNodeIds,
+      flowHighlightChildId,
+      selectedEdgeId,
+    ],
   )
   const colors = THEME_COLORS[theme]
-  const { setCenter, fitView } = useReactFlow()
+  const { setCenter, fitView, fitBounds } = useReactFlow()
 
   useEffect(() => {
     // includeHiddenNodes makes fitView bounds fall back to each node's declared
@@ -322,6 +355,36 @@ const GraphView = forwardRef<HTMLDivElement, GraphViewProps>(function GraphView(
     }
   }, [highlightedNodeId, expandedNodeId, flowCurrentNodeId, flowNodes, setCenter])
 
+  useEffect(() => {
+    if (!selectedEdgeId) return
+    const edge = allEdges.find((e) => e.id === selectedEdgeId)
+    if (!edge) return
+    const sourceNode = flowNodes.find((n) => n.id === edge.source)
+    const targetNode = flowNodes.find((n) => n.id === edge.target)
+    if (!sourceNode || !targetNode) return
+    const sourceWidth = (sourceNode.width as number | undefined) ?? NODE_WIDTH
+    const sourceHeight = (sourceNode.height as number | undefined) ?? NODE_HEIGHT
+    const targetWidth = (targetNode.width as number | undefined) ?? NODE_WIDTH
+    const targetHeight = (targetNode.height as number | undefined) ?? NODE_HEIGHT
+    const minX = Math.min(sourceNode.position.x, targetNode.position.x)
+    const minY = Math.min(sourceNode.position.y, targetNode.position.y)
+    const maxX = Math.max(sourceNode.position.x + sourceWidth, targetNode.position.x + targetWidth)
+    const maxY = Math.max(sourceNode.position.y + sourceHeight, targetNode.position.y + targetHeight)
+    // Same settle-then-fit timing as the effects above - the panel opening
+    // resizes the canvas via flexbox first, and fitBounds needs that resize
+    // to have already landed for its math to frame the right space.
+    let raf2 = 0
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => {
+        fitBounds({ x: minX, y: minY, width: maxX - minX, height: maxY - minY }, { padding: 0.35, duration: 400 })
+      })
+    })
+    return () => {
+      cancelAnimationFrame(raf1)
+      cancelAnimationFrame(raf2)
+    }
+  }, [selectedEdgeId, flowNodes, fitBounds])
+
   return (
     <div className="graph-view" ref={ref}>
       <ReactFlow
@@ -359,8 +422,16 @@ const GraphView = forwardRef<HTMLDivElement, GraphViewProps>(function GraphView(
           // wrongly dim the *other* permanent node while this one is focused.
           if (getChildren(node.id).length > 0 && !flowCurrentNodeId && !getNode(node.id)?.permanent) onToggleExpand(node.id)
         }}
+        onEdgeClick={(_, edge) => {
+          // A flow's own edges are already spoken for by its playback -
+          // clicking one to open an unrelated detail panel would fight the
+          // flow's dimming/camera for the same screen.
+          if (flowCurrentNodeId) return
+          onSelectEdge(edge.id)
+        }}
         onPaneClick={() => {
           if (expandedNodeId) onToggleExpand(expandedNodeId)
+          if (selectedEdgeId) onDeselectEdge()
         }}
         proOptions={{ hideAttribution: true }}
         minZoom={0.2}

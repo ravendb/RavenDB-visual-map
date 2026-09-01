@@ -612,6 +612,65 @@
   border-top: 1px solid var(--color-border);
 }
 
+/* Edge detail panel */
+
+.detail-panel__edge-label {
+  display: inline-block;
+  color: var(--color-text-muted);
+  background: var(--color-code-bg);
+  border: 1px solid var(--color-code-border);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 3px 8px;
+  border-radius: 4px;
+  margin-bottom: 10px;
+}
+
+.detail-panel__edge-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 14px;
+  padding-right: 24px;
+}
+
+.detail-panel__edge-node {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--color-heading);
+  cursor: pointer;
+  text-align: left;
+}
+
+.detail-panel__edge-node:hover {
+  color: var(--color-link);
+  text-decoration: underline;
+}
+
+.detail-panel__edge-arrow {
+  color: var(--color-text-muted);
+  font-size: 15px;
+  flex-shrink: 0;
+}
+
+.detail-panel__edge-side {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--color-border);
+}
+
+.detail-panel__edge-side-title {
+  font-size: 14px;
+  color: var(--color-heading);
+  margin: 0 0 6px;
+}
+
 .detail-panel__section h3 {
   font-size: 12px;
   text-transform: uppercase;

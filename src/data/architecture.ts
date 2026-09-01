@@ -74,6 +74,8 @@ export interface MapEdge {
   source: string
   target: string
   label?: string
+  /** Longer text for the edge detail panel, describing how source and target actually interact. */
+  description?: string
 }
 
 export const nodes: MapNode[] = [
@@ -170,9 +172,9 @@ export const nodes: MapNode[] = [
     id: 'search-engines',
     label: 'Search Engines',
     category: 'indexing',
-    summary: 'The two interchangeable search engines an index can be built on: the in-house Corax and the older Lucene path.',
+    summary: 'The two interchangeable text search engines an index can be built on - the in-house Corax and the older Lucene path - plus Corax\'s vector search.',
     description:
-      'Corax is RavenDB\'s in-house search engine: it analyzes field values, builds an inverted index persisted through Voron, and executes queries against it. Lucene remains fully supported, running on Voron through the LuceneVoronDirectory in src/Raven.Server/Indexing. Which one a new index uses is configurable server-wide, per database and per static index; when nothing is configured the default depends on the license - Community, Developer and unlicensed servers default to Corax, Professional and Enterprise default to Lucene.',
+      'Corax is RavenDB\'s in-house search engine: it analyzes field values, builds an inverted index persisted through Voron, and executes queries against it. Lucene remains fully supported, running on Voron through the LuceneVoronDirectory in src/Raven.Server/Indexing. Which one a new index uses is configurable server-wide, per database and per static index; when nothing is configured the default depends on the license - Community, Developer and unlicensed servers default to Corax, Professional and Enterprise default to Lucene. A vector field is a separate concern from either text engine: Corax answers a similarity query by calling into an HNSW graph that Voron itself stores and searches.',
     references: {
       docs: [
         { name: 'Search Engines (Corax / Lucene)', url: 'https://docs.ravendb.net/7.2/indexes/search-engine/corax' },
@@ -185,38 +187,17 @@ export const nodes: MapNode[] = [
   },
   {
     id: 'ai',
-    label: 'AI & Vector Search',
+    label: 'AI / Embeddings',
     category: 'indexing',
-    summary: 'Embeddings generation and the chat/assistant integrations with external AI providers.',
+    summary: 'Turning text into embeddings - via a bundled local model or a remote provider - plus the chat/assistant integrations with external AI providers.',
     description:
-      'EmbeddingsGenerator is a background task that turns document text into vectors through an external provider, chunking it first with TextChunker. ChatCompletionClient is the client for the user\'s own configured AI provider; AiAssistant is a separate, license-gated proxy to RavenDB\'s own cloud-hosted assistant at api.ravendb.net and does not use ChatCompletionClient or the user\'s provider config. The vectors it produces feed into Vector Search, where they\'re indexed as fields like any other.',
+      "EmbeddingsGenerationTask is a literal ETL type (EtlType.EmbeddingsGeneration, alongside Raven/SQL/OLAP ETL) that tails the document change feed by etag - the same mechanism every index and other ETL uses - rather than firing synchronously off SaveChanges. It hands each batch to AiWorker, which chunks the text with TextChunker and checks every chunk against the Embeddings Cache by content hash first; only chunks that miss the cache actually get embedded, either through RavenDB's own bundled ONNX model (no external call) or one of the configured remote providers. ChatCompletionClient is the client for the user's own configured AI provider; AiAssistant is a separate, license-gated proxy to RavenDB's own cloud-hosted assistant at api.ravendb.net and does not use ChatCompletionClient or the user's provider config. What this produces is just a vector field on a document - Search Engines is what actually makes that field searchable by similarity.",
     references: {
       docs: [
         { name: 'AI Integration & Vector Search', url: 'https://docs.ravendb.net/7.2/ai-integration/overview' },
         { name: 'The Embeddings Generation Task', url: 'https://docs.ravendb.net/7.2/ai-integration/generating-embeddings/embeddings-generation-task/' },
       ],
       source: [{ name: 'src/Raven.Server/Documents/AI', url: githubTreeUrl('src/Raven.Server/Documents/AI') }],
-    },
-  },
-  {
-    id: 'vector-search',
-    label: 'Vector Search',
-    category: 'indexing',
-    summary: 'Vector fields on an index: turning embeddings into an indexable, queryable representation for similarity search.',
-    description:
-      'GenerateEmbeddings lazily constructs a BERT ONNX embedding model the first time it\'s needed - the bundled bge-micro-v2 model - and buffers its 384-dimensional output in a 1536-byte block (F32Size, 4 bytes per float). Vector fields are indexed and queried like any other index field, through either a static index or a dynamic query - independent of AI Integration, which only supplies the vectors when the source text isn\'t already embedded elsewhere.',
-    references: {
-      docs: [
-        { name: 'Vector Search - Overview', url: 'https://docs.ravendb.net/7.2/ai-integration/vector-search/overview/' },
-        { name: 'Vector Search using a Static Index', url: 'https://docs.ravendb.net/7.2/ai-integration/vector-search/vector-search-using-static-index' },
-        { name: 'Vector Search using a Dynamic Query', url: 'https://docs.ravendb.net/7.2/ai-integration/vector-search/vector-search-using-dynamic-query' },
-      ],
-      source: [{ name: 'src/Raven.Server/Documents/Indexes/VectorSearch', url: githubTreeUrl('src/Raven.Server/Documents/Indexes/VectorSearch') }],
-    },
-    codeRef: {
-      file: 'src/Raven.Server/Documents/Indexes/VectorSearch/GenerateEmbeddings.cs',
-      startLine: 27,
-      expectSymbol: 'class GenerateEmbeddings',
     },
   },
   {
@@ -913,17 +894,26 @@ export const nodes: MapNode[] = [
   // ---------------------------------------------------------------------
   {
     id: 'search-engines-corax',
-    label: 'Corax',
+    label: 'Corax & Vector Search',
     category: 'indexing',
     summary:
-      'The in-house engine. Analyzer composes a tokenizer (ITokenizer) with transformers like lower-casing in a staged pipeline that can resume tokenization across steps; IndexWriter then builds the inverted index - explicitly single-threaded and caller-synchronized rather than internally locked - while IndexFieldsMapping resolves each field by Slice, string or integer id. IndexSearcher executes queries against that index, switching to a bitmap representation once a term\'s postings cross a 32MB threshold, trading memory for faster set operations.',
+      'The in-house text engine, plus the HNSW-based vector similarity search it calls into for embeddings.',
+    description:
+      'Analyzer composes a tokenizer (ITokenizer) with transformers like lower-casing in a staged pipeline that can resume tokenization across steps; IndexWriter then builds the inverted index - explicitly single-threaded and caller-synchronized rather than internally locked - while IndexFieldsMapping resolves each field by Slice, string or integer id. IndexSearcher executes queries against that index, switching to a bitmap representation once a term\'s postings cross a 32MB threshold, trading memory for faster set operations.\n\nVector search is a separate structure Corax calls into rather than something it implements itself: the HNSW graph lives in Voron\'s Data/Graphs/Hnsw, not in Corax. Hnsw.Create persists it as a genuine Voron structure - a tree for node lookups, a Container for the raw vector blobs, and the graph\'s own options written into that tree - so IndexSearcher just opens a Hnsw.SearchState against the current transaction and calls into it to read vectors back and run the nearest-neighbor search. A vector can be quantized before it\'s stored: VectorQuantizer reduces it to a per-vector-scaled int8 or a 1-bit/binary packing, trading precision for a smaller graph and the cheaper CosineSimilarityI8/HammingDistance kernels instead of full float32 cosine distance.',
     references: {
       docs: [
         { name: 'Search Engine: Corax', url: 'https://docs.ravendb.net/7.2/indexes/search-engine/corax' },
         { name: 'Indexing Basics', url: 'https://docs.ravendb.net/7.2/indexes/indexing-basics' },
         { name: 'Query Overview', url: 'https://docs.ravendb.net/7.2/querying/overview' },
+        { name: 'Vector Search - Overview', url: 'https://docs.ravendb.net/7.2/ai-integration/vector-search/overview/' },
+        { name: 'Vector Search using a Static Index', url: 'https://docs.ravendb.net/7.2/ai-integration/vector-search/vector-search-using-static-index' },
+        { name: 'Vector Search using a Dynamic Query', url: 'https://docs.ravendb.net/7.2/ai-integration/vector-search/vector-search-using-dynamic-query' },
       ],
-      source: [{ name: 'src/Corax', url: githubTreeUrl('src/Corax') }],
+      source: [
+        { name: 'src/Corax', url: githubTreeUrl('src/Corax') },
+        { name: 'src/Voron/Data/Graphs', url: githubTreeUrl('src/Voron/Data/Graphs') },
+        { name: 'src/Raven.Client/Documents/Queries/Vector/VectorQuantizer.cs', url: githubBlobUrl('src/Raven.Client/Documents/Queries/Vector/VectorQuantizer.cs') },
+      ],
     },
     codeRef: {
       file: 'src/Corax/Indexing/IndexWriter.cs',
@@ -1280,12 +1270,17 @@ export const nodes: MapNode[] = [
     category: 'indexing',
     summary:
       'The background task that sends text to an embeddings provider and stores the resulting vectors. It runs its own work queue with separate query-time and ETL-time modes, so an ETL run\'s embedding calls don\'t compete with a live search query\'s.',
+    description:
+      'Either mode can resolve to a remote provider (OpenAI, Azure OpenAI, Google, Ollama, ...) or to EmbeddedSettings, RavenDB\'s built-in path: a server-wide singleton that runs a bundled ONNX model (bge-micro-v2) locally, no external call. GenerateEmbeddings is what that built-in path actually runs - it\'s used from both sides, embedding document text when a static index defines a vector field and embedding a query\'s search text at query time.',
     references: {
       docs: [
         { name: 'The Embeddings Generation Task', url: 'https://docs.ravendb.net/7.2/ai-integration/generating-embeddings/embeddings-generation-task/' },
         { name: 'Vector Search - Overview', url: 'https://docs.ravendb.net/7.2/ai-integration/vector-search/overview/' },
       ],
-      source: [{ name: 'src/Raven.Server/Documents/AI/Embeddings', url: githubTreeUrl('src/Raven.Server/Documents/AI/Embeddings') }],
+      source: [
+        { name: 'src/Raven.Server/Documents/AI/Embeddings', url: githubTreeUrl('src/Raven.Server/Documents/AI/Embeddings') },
+        { name: 'src/Raven.Server/Documents/Indexes/VectorSearch/GenerateEmbeddings.cs', url: githubBlobUrl('src/Raven.Server/Documents/Indexes/VectorSearch/GenerateEmbeddings.cs') },
+      ],
     },
     codeRef: {
       file: 'src/Raven.Server/Documents/AI/Embeddings/EmbeddingsGenerator.cs',
@@ -1516,9 +1511,9 @@ export const nodes: MapNode[] = [
 ]
 
 export const edges: MapEdge[] = [
-  { id: 'client-http', source: 'client', target: 'http', label: 'HTTP API' },
-  { id: 'studio-http', source: 'studio', target: 'http', label: 'HTTP API' },
-  { id: 'security-http', source: 'security', target: 'http', label: 'authenticates' },
+  { id: 'client-security', source: 'client', target: 'security', label: 'HTTPS' },
+  { id: 'studio-security', source: 'studio', target: 'security', label: 'HTTPS' },
+  { id: 'security-http', source: 'security', target: 'http', label: 'authenticates, routes to' },
   { id: 'http-sharding', source: 'http', target: 'sharding', label: 'sharded databases' },
   { id: 'sharding-documents', source: 'sharding', target: 'documents-core', label: 'per-shard requests' },
   { id: 'http-documents', source: 'http', target: 'documents-core', label: 'routes to' },
@@ -1526,8 +1521,7 @@ export const edges: MapEdge[] = [
   { id: 'documents-indexing', source: 'documents-core', target: 'indexing', label: 'feeds' },
   { id: 'indexing-engines', source: 'indexing', target: 'search-engines', label: 'written through' },
   { id: 'documents-ai', source: 'documents-core', target: 'ai', label: 'embeddings tasks' },
-  { id: 'ai-vector-search', source: 'ai', target: 'vector-search', label: 'vector fields' },
-  { id: 'vector-search-indexing', source: 'vector-search', target: 'indexing', label: 'indexed as field' },
+  { id: 'ai-indexing', source: 'ai', target: 'indexing', label: 'vector fields' },
   { id: 'documents-storage', source: 'documents-core', target: 'storage', label: 'persists via' },
   { id: 'engines-storage', source: 'search-engines', target: 'storage', label: 'persists via' },
   { id: 'cluster-storage', source: 'cluster', target: 'storage', label: 'ACID Raft log' },
@@ -1550,6 +1544,10 @@ export function getChildren(nodeId: string): MapNode[] {
 
 export function getNode(id: string): MapNode | undefined {
   return nodes.find((n) => n.id === id)
+}
+
+export function getEdge(id: string): MapEdge | undefined {
+  return edges.find((e) => e.id === id)
 }
 
 export function githubBlobUrl(path: string, startLine?: number, endLine?: number): string {
