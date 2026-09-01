@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { ReactFlowProvider } from '@xyflow/react'
 import GraphView from './components/GraphView'
 import NodeDetailPanel from './components/NodeDetailPanel'
+import EdgeDetailPanel from './components/EdgeDetailPanel'
 import Toolbar from './components/Toolbar'
 import FlowPanel from './components/FlowPanel'
 import FlowNavBar from './components/FlowNavBar'
@@ -18,6 +19,7 @@ export default function App() {
   const [expandedNodeId, setExpandedNodeId] = useState<string | null>(null)
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [highlightedNodeId, setHighlightedNodeId] = useState<string | null>(null)
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
   const exportTargetRef = useRef<HTMLDivElement | null>(null)
   const flow = useFlowPlayback()
   // The very first URL-sync pass runs in the same commit as the restore
@@ -34,6 +36,7 @@ export default function App() {
   function handleSelectNode(nodeId: string) {
     const node = getNode(nodeId)
     if (!node) return
+    setSelectedEdgeId(null)
     // A child only renders once its parent is expanded in place on the map.
     if (node.parentId) setExpandedNodeId(node.parentId)
     focus(nodeId)
@@ -46,13 +49,28 @@ export default function App() {
   function handleBackToMacro() {
     setExpandedNodeId(null)
     setSelectedNodeId(null)
+    setSelectedEdgeId(null)
   }
 
   function handleStartFlow(id: string) {
     setExpandedNodeId(null)
     setSelectedNodeId(null)
     setHighlightedNodeId(null)
+    setSelectedEdgeId(null)
     flow.startFlow(id)
+  }
+
+  // Mirrors handleSelectNode: picking a different connection (or a node)
+  // always replaces whatever else was open, rather than stacking panels.
+  function handleSelectEdge(edgeId: string) {
+    setExpandedNodeId(null)
+    setSelectedNodeId(null)
+    setHighlightedNodeId(null)
+    setSelectedEdgeId(edgeId)
+  }
+
+  function handleDeselectEdge() {
+    setSelectedEdgeId(null)
   }
 
   // Reopens whatever a URL points at. expandedNodeId and nodeId (selection)
@@ -61,6 +79,7 @@ export default function App() {
   // inside it) comes back exactly as it was left, not re-expanded by default -
   // see urlState.ts's defaultExpandedFor for the one case that still infers it.
   function applyUrlState(state: MapUrlState) {
+    setSelectedEdgeId(null)
     focus(state.nodeId)
     if (state.flowId) {
       setExpandedNodeId(null)
@@ -142,9 +161,12 @@ export default function App() {
             flowVisitedEdgeIds={flow.visitedEdgeIds}
             flowNodeIds={flow.flowNodeIds}
             flowHighlightChildId={flow.currentHighlightChildId}
+            selectedEdgeId={selectedEdgeId}
             onSelectNode={handleSelectNode}
             onToggleExpand={handleToggleExpand}
             onDeselect={() => setSelectedNodeId(null)}
+            onSelectEdge={handleSelectEdge}
+            onDeselectEdge={handleDeselectEdge}
           />
         </ReactFlowProvider>
         {flow.activeFlowId ? (
@@ -158,6 +180,8 @@ export default function App() {
             selectedNodeId={selectedNodeId}
             onCloseSelectedNode={() => setSelectedNodeId(null)}
           />
+        ) : selectedEdgeId ? (
+          <EdgeDetailPanel edgeId={selectedEdgeId} onClose={handleDeselectEdge} onSelectNode={handleSelectNode} />
         ) : (
           selectedNodeId && <NodeDetailPanel nodeId={selectedNodeId} theme={theme} onClose={() => setSelectedNodeId(null)} />
         )}

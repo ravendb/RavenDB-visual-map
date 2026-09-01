@@ -15,15 +15,13 @@ export const MACRO_POSITIONS: Record<string, { x: number; y: number }> = {
   http: { x: 610, y: 140 },
   // Left column: a single stack, Sharding down through Indexing, each row
   // lined up with its opposite number in the right-hand column below
-  // (sharding/backup, ai/subscriptions, vector-search/etl, indexing/sinks)
-  // so the two columns read as matching horizontal rows, not just as
-  // independently-spaced stacks.
+  // (sharding/backup, ai/subscriptions, indexing/sinks) so the two columns
+  // read as matching horizontal rows, not just as independently-spaced stacks.
   sharding: { x: 50, y: 280 },
-  // y:450 (not 430, like its row partners) lines its center up with the
+  // y:450 (not 430, like its row partner) lines its center up with the
   // Storages handle "embeddings tasks" actually exits from, so that edge
   // runs dead straight instead of stepping down to meet it.
   ai: { x: 50, y: 450 },
-  'vector-search': { x: 50, y: 585 },
   indexing: { x: 50, y: 740 },
   // Search Engines is permanently expanded (2 children: Corax, Lucene),
   // stacked in a single column via childColumns: 1 (~216 tall, ~278 wide) -

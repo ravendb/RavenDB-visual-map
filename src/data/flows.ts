@@ -26,6 +26,7 @@ export const FLOWS: Flow[] = [
     description: 'The core path a plain document write takes to reach durable storage.',
     steps: [
       { nodeId: 'client', note: 'The client SDK sends a document change (session.Store + SaveChanges).' },
+      { nodeId: 'security', note: "HttpsConnectionMiddleware validates the client's X.509 certificate over TLS before the request reaches routing." },
       { nodeId: 'http', note: 'The HTTP layer routes the write to the right document handler.' },
       { nodeId: 'documents-core', note: 'DocumentsStorage validates the change and hands it to the TransactionMerger.' },
       { nodeId: 'core-tx-merger', note: 'TransactionMerger batches the write with other pending operations into one shared transaction.' },
@@ -38,6 +39,7 @@ export const FLOWS: Flow[] = [
     description: 'The same write path, plus what changes when the document carries a binary attachment.',
     steps: [
       { nodeId: 'client', note: 'The client SDK sends the document change together with the attachment stream (session.Advanced.Attachments.Store).' },
+      { nodeId: 'security', note: "HttpsConnectionMiddleware validates the client's X.509 certificate over TLS before the request reaches routing." },
       { nodeId: 'http', note: 'The HTTP layer routes the write to the right document handler.' },
       {
         nodeId: 'documents-core',
@@ -54,8 +56,9 @@ export const FLOWS: Flow[] = [
     description: 'The path a query takes when it matches an index that already exists.',
     steps: [
       { nodeId: 'client', note: 'The client SDK sends an RQL query (session.Query<T>() or a raw query).' },
+      { nodeId: 'security', note: "HttpsConnectionMiddleware validates the client's X.509 certificate over TLS before the request reaches routing." },
       { nodeId: 'http', note: 'The HTTP layer routes the request to the query handler.' },
-      { nodeId: 'core-queries', note: 'AbstractQueryRunner parses the RQL and matches it against an existing static or auto-index - no new index is needed.' },
+      { nodeId: 'core-queries', note: 'DynamicQueryRunner parses the RQL and matches it against an existing static or auto-index - no new index is needed.' },
       { nodeId: 'documents-core', note: 'The database hands the parsed query to IndexStore to run it against the matched index.' },
       { nodeId: 'indexing', note: 'The matched index is already up to date, so the query can be answered from it immediately.' },
       { nodeId: 'search-engines', note: 'Corax or Lucene executes the query against the index and returns the matching entries.' },
@@ -68,10 +71,11 @@ export const FLOWS: Flow[] = [
     description: 'How a query that matches no existing index gets one created for it on the fly.',
     steps: [
       { nodeId: 'client', note: 'The client SDK sends an RQL query shaped in a way no existing index covers.' },
+      { nodeId: 'security', note: "HttpsConnectionMiddleware validates the client's X.509 certificate over TLS before the request reaches routing." },
       { nodeId: 'http', note: 'The HTTP layer routes the request to the query handler.' },
-      { nodeId: 'core-queries', note: "AbstractQueryRunner parses the RQL and finds no static or auto-index that already matches it." },
+      { nodeId: 'core-queries', note: "DynamicQueryRunner parses the RQL and finds no static or auto-index that already matches it." },
       { nodeId: 'documents-core', note: 'The database hands the query to IndexStore, which creates a new auto-index definition for exactly this query shape, on demand.' },
-      { nodeId: 'indexing', note: "The new auto-index runs its initial indexing pass over the collection's existing documents before the query can be answered from it." },
+      { nodeId: 'indexing', note: "The query waits on the brand-new auto-index up to a bounded staleness timeout (15s by default) instead of blocking until it's fully caught up - it can still come back before indexing finishes if that window runs out." },
       { nodeId: 'search-engines', note: 'The auto-index is written through Corax or Lucene like any other index, static or automatic.' },
       { nodeId: 'storage', note: "The new index's pages are persisted through Voron as it catches up." },
     ],
@@ -79,14 +83,20 @@ export const FLOWS: Flow[] = [
   {
     id: 'vector-search',
     label: 'Embeddings & vector search',
-    description: 'How document text becomes a vector you can search by similarity.',
+    description:
+      'How document text becomes a vector you can search by similarity - Embeddings Generation is a literal ETL type under the hood, not a special-cased hook off document writes.',
     steps: [
-      { nodeId: 'documents-core', note: 'A document change is picked up by the embeddings ongoing task.' },
-      { nodeId: 'ai', note: 'TextChunker splits the text and EmbeddingsGenerator asks the configured provider for vectors.' },
-      { nodeId: 'vector-search', note: 'The vectors are indexed as fields, independent of whichever AI provider produced them.' },
-      { nodeId: 'indexing', note: 'The vector field is written through the index like any other field.' },
-      { nodeId: 'search-engines', note: 'The search engine stores the vector data and answers similarity queries against it.' },
-      { nodeId: 'storage', note: 'Index and vector data are persisted through Voron.' },
+      {
+        nodeId: 'documents-core',
+        note: "A document write bumps its etag; EmbeddingsGenerationTask - a literal ETL type (EtlType.EmbeddingsGeneration) - tails that etag the same way any other ETL process or index does, not a synchronous hook off SaveChanges.",
+      },
+      {
+        nodeId: 'ai',
+        note: 'TextChunker splits the text into chunks; each chunk is checked against the Embeddings Cache by content hash first, and only the chunks that miss the cache are sent to the built-in model or the configured provider for a vector.',
+      },
+      { nodeId: 'indexing', note: 'The vectors - freshly generated or reused from cache - are indexed as fields, written through the index like any other field.' },
+      { nodeId: 'search-engines', note: "Corax answers a similarity query by calling into an HNSW graph - Voron's own data structure, not Corax's." },
+      { nodeId: 'storage', note: 'The HNSW graph and the vector data it points to are persisted through Voron.' },
     ],
   },
 ]
