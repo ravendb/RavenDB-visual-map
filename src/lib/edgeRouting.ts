@@ -40,7 +40,7 @@ function axisGap(sourceMin: number, sourceMax: number, targetMin: number, target
   return 0
 }
 
-function rangeOverlap(aMin: number, aMax: number, bMin: number, bMax: number): boolean {
+export function rangeOverlap(aMin: number, aMax: number, bMin: number, bMax: number): boolean {
   return aMin < bMax && bMin < aMax
 }
 
@@ -166,23 +166,39 @@ export function assignLanes<T extends RoutableEdge>(
   const sides = edges.map((e) => {
     const sourceBox = macroBoxes.get(e.source) ?? boxOf(e.source)
     const targetBox = macroBoxes.get(e.target) ?? boxOf(e.target)
-    const sourcePos = boxCenter(sourceBox)
-    const targetPos = boxCenter(targetBox)
     const obstacles = [...macroBoxes.entries()].filter(([id]) => id !== e.source && id !== e.target).map(([, box]) => box)
     const { sourceSide, targetSide } = pickSides(sourceBox, targetBox, obstacles)
     // A pair of same-orientation handles (both left/right, or both
-    // top/bottom) is only actually capable of running straight when the two
-    // nodes are level on the other axis - which pickSides' choice of sides
-    // doesn't by itself guarantee (an L-shaped pair is a different
-    // orientation combination entirely, never "straight" regardless).
+    // top/bottom) can only ever run dead straight - zero bends - when the two
+    // boxes actually share some range on the *other* axis: any coordinate in
+    // that shared band is a valid attach point on both, so picking one inside
+    // it needs no jog at all. This used to require the two boxes' centers to
+    // nearly coincide, which missed pairs that overlap generously but aren't
+    // centered on each other (e.g. a short, permanently-expanded card level
+    // with a much taller one) - those still got a routable side pair from
+    // pickSides, but each end defaulted to its own box's center regardless,
+    // producing an avoidable double bend between the two different centers.
     const bothHorizontal = (sourceSide === 'left' || sourceSide === 'right') && (targetSide === 'left' || targetSide === 'right')
     const bothVertical = (sourceSide === 'top' || sourceSide === 'bottom') && (targetSide === 'top' || targetSide === 'bottom')
-    const level = bothHorizontal
-      ? Math.abs(targetPos.y - sourcePos.y) < LEVEL_EPSILON
-      : bothVertical
-        ? Math.abs(targetPos.x - sourcePos.x) < LEVEL_EPSILON
-        : false
-    return { edge: e, sourceSide, targetSide, level }
+    let level = false
+    let sourceLevelOffset = 50
+    let targetLevelOffset = 50
+    if (bothHorizontal && rangeOverlap(sourceBox.y, sourceBox.y + sourceBox.height, targetBox.y, targetBox.y + targetBox.height)) {
+      const lo = Math.max(sourceBox.y, targetBox.y)
+      const hi = Math.min(sourceBox.y + sourceBox.height, targetBox.y + targetBox.height)
+      const shared = (lo + hi) / 2
+      sourceLevelOffset = ((shared - sourceBox.y) / sourceBox.height) * 100
+      targetLevelOffset = ((shared - targetBox.y) / targetBox.height) * 100
+      level = true
+    } else if (bothVertical && rangeOverlap(sourceBox.x, sourceBox.x + sourceBox.width, targetBox.x, targetBox.x + targetBox.width)) {
+      const lo = Math.max(sourceBox.x, targetBox.x)
+      const hi = Math.min(sourceBox.x + sourceBox.width, targetBox.x + targetBox.width)
+      const shared = (lo + hi) / 2
+      sourceLevelOffset = ((shared - sourceBox.x) / sourceBox.width) * 100
+      targetLevelOffset = ((shared - targetBox.x) / targetBox.width) * 100
+      level = true
+    }
+    return { edge: e, sourceSide, targetSide, level, sourceLevelOffset, targetLevelOffset }
   })
 
   // Each lane entry remembers where the *other* end of its edge actually
@@ -192,26 +208,27 @@ export function assignLanes<T extends RoutableEdge>(
     otherPos: { x: number; y: number }
   }
   const laneGroups = new Map<string, LaneEntry[]>()
-  // Sides a level edge has already claimed the center of - the proportional
+  // Sides a level edge has already claimed a point of (not always the exact
+  // center - see sourceLevelOffset/targetLevelOffset above) - the proportional
   // split below has to steer every other edge on that same side around that
   // point instead of also landing on it, which an unclaimed side (or one
   // with only a single occupant, which centers itself by default too) would
   // otherwise do.
-  const centerClaimed = new Set<string>()
+  const centerClaimed = new Map<string, number>()
   function addToLane(nodeId: string, side: HandleSide, edgeId: string, otherPos: { x: number; y: number }) {
     const key = `${nodeId}:${side}`
     const list = laneGroups.get(key) ?? []
     list.push({ edgeId, otherPos })
     laneGroups.set(key, list)
   }
-  sides.forEach(({ edge, sourceSide, targetSide, level }) => {
-    // A level pair goes straight through the center of both handles instead
-    // of sharing the proportional lane split below - so it isn't thrown off
-    // by however many other, unrelated edges happen to share that side, and
+  sides.forEach(({ edge, sourceSide, targetSide, level, sourceLevelOffset, targetLevelOffset }) => {
+    // A level pair goes straight through its own shared point instead of
+    // sharing the proportional lane split below - so it isn't thrown off by
+    // however many other, unrelated edges happen to share that side, and
     // doesn't itself skew their split by occupying one of the slots.
     if (level) {
-      centerClaimed.add(`${edge.source}:${sourceSide}`)
-      centerClaimed.add(`${edge.target}:${targetSide}`)
+      centerClaimed.set(`${edge.source}:${sourceSide}`, sourceLevelOffset)
+      centerClaimed.set(`${edge.target}:${targetSide}`, targetLevelOffset)
       return
     }
     const sourcePos = boxCenter(macroBoxes.get(edge.source) ?? boxOf(edge.source))
@@ -232,21 +249,24 @@ export function assignLanes<T extends RoutableEdge>(
     list.sort((a, b) => a.otherPos[axis] - b.otherPos[axis] || a.edgeId.localeCompare(b.edgeId))
   })
 
-  // How much of the middle to leave clear for a level edge's own center
-  // handle - e.g. 15 reserves 35-65% so nothing else's line runs through or
-  // right alongside it.
+  // How much of the middle to leave clear around a level edge's own claimed
+  // point - e.g. 15 reserves claimed±15 so nothing else's line runs through
+  // or right alongside it.
   const CENTER_GAP = 15
 
-  function laneOffset(nodeId: string, side: HandleSide, edgeId: string, level: boolean): number {
-    if (level) return 50
+  function laneOffset(nodeId: string, side: HandleSide, edgeId: string, level: boolean, levelOffset: number): number {
+    if (level) return levelOffset
     const list = laneGroups.get(`${nodeId}:${side}`) ?? [{ edgeId, otherPos: { x: 0, y: 0 } }]
     const index = list.findIndex((entry) => entry.edgeId === edgeId)
     const fraction = (index + 1) / (list.length + 1)
-    if (!centerClaimed.has(`${nodeId}:${side}`)) return fraction * 100
-    // Squeeze the usual evenly-spaced spread into the two halves outside the
-    // reserved center band, instead of letting it land inside.
-    const halfSpan = (50 - CENTER_GAP) / 50
-    return fraction < 0.5 ? fraction * 100 * halfSpan : 50 + CENTER_GAP + (fraction * 100 - 50) * halfSpan
+    const claimed = centerClaimed.get(`${nodeId}:${side}`)
+    if (claimed === undefined) return fraction * 100
+    // Squeeze the usual evenly-spaced spread into the two bands outside the
+    // reserved point, instead of letting it land inside.
+    const lowSpan = Math.max(0, claimed - CENTER_GAP)
+    const highStart = Math.min(100, claimed + CENTER_GAP)
+    const highSpan = 100 - highStart
+    return fraction < 0.5 ? fraction * 2 * lowSpan : highStart + (fraction * 2 - 1) * highSpan
   }
 
   const edgeAnchors = new Map<string, { sourceHandle: string; targetHandle: string }>()
@@ -258,9 +278,9 @@ export function assignLanes<T extends RoutableEdge>(
     nodeHandles.set(nodeId, list)
   }
 
-  sides.forEach(({ edge, sourceSide, targetSide, level }) => {
-    const sourceOffset = laneOffset(edge.source, sourceSide, edge.id, level)
-    const targetOffset = laneOffset(edge.target, targetSide, edge.id, level)
+  sides.forEach(({ edge, sourceSide, targetSide, level, sourceLevelOffset, targetLevelOffset }) => {
+    const sourceOffset = laneOffset(edge.source, sourceSide, edge.id, level, sourceLevelOffset)
+    const targetOffset = laneOffset(edge.target, targetSide, edge.id, level, targetLevelOffset)
     ensureHandle(edge.source, sourceSide, sourceOffset)
     ensureHandle(edge.target, targetSide, targetOffset)
     edgeAnchors.set(edge.id, { sourceHandle: handleId(sourceSide, sourceOffset), targetHandle: handleId(targetSide, targetOffset) })
