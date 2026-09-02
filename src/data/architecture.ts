@@ -133,7 +133,7 @@ export const nodes: MapNode[] = [
   {
     id: 'documents-core',
     label: 'Storages',
-    category: 'server',
+    category: 'storage',
     summary: 'The per-database storage subsystems: documents, attachments, revisions, counters, time series, conflicts, refresh and archival.',
     description:
       'Every one of these lives directly on top of a Voron storage environment and is what most database operations ultimately touch - each gets its own micro node here rather than being folded into one generic "storage" box, since they are separate classes with separate on-disk tables and separate size/retention rules. DocumentsStorage is the hub: every write is stamped with a new change vector there, independent of whether replication is even configured - it is the general-purpose causality/versioning primitive the rest of the server builds on, which is why Revisions, Subscriptions, ETL and incremental Backup each key off it.',
@@ -423,7 +423,7 @@ export const nodes: MapNode[] = [
   {
     id: 'core-document',
     label: 'Document',
-    category: 'server',
+    category: 'storage',
     summary: 'The document read/write core: get, put, delete by id, and the change-vector bookkeeping every write goes through.',
     description:
       'DocumentsStorage handles document CRUD directly against Voron and stamps a new change vector on every write, regardless of whether replication is even configured - Revisions keys each stored revision by it, Subscriptions and ETL use it as their resume checkpoint, and Backup compares it to the last run\'s to detect incremental changes.',
@@ -444,7 +444,7 @@ export const nodes: MapNode[] = [
   {
     id: 'core-attachments',
     label: 'Attachments',
-    category: 'server',
+    category: 'storage',
     summary: 'Binary blobs attached to documents, stored as streams alongside the owning document, plus cross-node "remote attachment" fetch.',
     description:
       'AttachmentsStorage keeps attachments in their own Voron table, separately from document JSON, so large binaries do not bloat document reads - every record is keyed by a 44-byte content hash (AttachmentHashSize), so identical content stored on several documents is kept once. RemoteAttachmentsStorage/RemoteAttachmentsSender and RemoteAttachmentHandler implement cold-storage tiering on top of that: an attachment\'s stream can be moved out to external storage (e.g. S3/Azure, typically as part of a backup) and deleted locally, then fetched back on demand by its external identifier instead of staying resident forever - this derives from the same AbstractBackgroundWorkStorage used for document expiration. The in-memory model for a record and its deletion marker (Attachment / tombstone) is a flat set of fields (StorageId, Key, Etag, ChangeVector, content hash, size, stream) - RevisionVersion is only populated on the copy kept for a revision, not on the live document\'s.',
@@ -470,7 +470,7 @@ export const nodes: MapNode[] = [
   {
     id: 'core-revisions',
     label: 'Revisions',
-    category: 'server',
+    category: 'storage',
     summary:
       'Versioning: keeps previous versions of a document according to the revisions configuration. RevisionsStorage keeps a plain and a compressed Voron table side by side, and rejects any single revision larger than SizeLimitInBytes (32MB by default, 2MB on 32-bit builds, not currently configurable). Each stored revision is keyed by the change vector the document had at that point, not by a timestamp or sequence number.',
     references: {
@@ -490,7 +490,7 @@ export const nodes: MapNode[] = [
   {
     id: 'core-counters',
     label: 'Counters',
-    category: 'server',
+    category: 'storage',
     summary:
       'Distributed counters attached to a document, mergeable across nodes without conflicts. A counters document caps out at 2048 bytes (MaxCounterDocumentSize), and each counter\'s value is stored per originating node so merging across nodes only ever needs a sum, never a lock.',
     references: {
@@ -510,7 +510,7 @@ export const nodes: MapNode[] = [
   {
     id: 'core-timeseries',
     label: 'Time Series',
-    category: 'server',
+    category: 'storage',
     summary:
       'Append-only numeric series attached to a document, stored in compressed segments. Each segment is capped at 2048 bytes (MaxSegmentSize) before a new one starts; TimeSeriesRollups only marks a rollup as needing recomputation, while the separate TimeSeriesPolicyRunner background worker is what actually downsamples and purges data per the configured retention policy.',
     references: {
@@ -530,7 +530,7 @@ export const nodes: MapNode[] = [
   {
     id: 'core-conflicts',
     label: 'Conflicts',
-    category: 'server',
+    category: 'storage',
     summary: 'Persists the competing document versions RavenDB keeps on disk when two nodes changed the same document concurrently and no automatic resolution has run yet.',
     description:
       'ConflictsStorage owns a dedicated Voron table (ConflictsSchema) holding every unresolved version of a conflicted document, tracked via the ConflictsCount field; AddConflict writes an incoming version alongside the existing one instead of overwriting it, and GetConflictsFor/GetAllConflictsBySameId read them back for Studio or resolution logic. It is distinct from ConflictManager (under Replication), which decides whether and how to resolve a conflict and then calls into ConflictsStorage to persist the outcome - this is the storage layer, ConflictManager is the policy layer built on top of it.',
@@ -551,7 +551,7 @@ export const nodes: MapNode[] = [
   {
     id: 'core-refresh',
     label: 'Refresh',
-    category: 'server',
+    category: 'storage',
     summary: 'Periodically re-writes a document once its @refresh metadata time has passed, bumping its change vector without changing its data.',
     description:
       'RefreshStorage derives from the same DocumentBackgroundWorkStorage base as Expiration and Archival, and drives documents through the DocumentsByRefresh tree keyed on the @refresh metadata property. ProcessDocument checks whether that time has passed, strips the @refresh tag, then calls DocumentsStorage.Put with the same content - the point is a fresh change vector and etag, not a content change, so anything watching for updates (indexes, subscriptions, ETL) re-triggers on it. A still-conflicted document is only treated as refreshed once every conflicted copy has itself passed its refresh time.',
@@ -572,7 +572,7 @@ export const nodes: MapNode[] = [
   {
     id: 'core-archival',
     label: 'Archival',
-    category: 'server',
+    category: 'storage',
     summary: 'Marks documents past their scheduled @archive-at time as archived, so other subsystems, like indexing, can skip them.',
     description:
       'DataArchivalStorage walks the DocumentsByArchiveAtDateTime tree keyed on the @archive-at metadata property; once a document\'s time has passed, it sets the Archived metadata flag, removes @archive-at, and ORs in DocumentFlags.Archived before writing the document back - unlike Refresh and Expiration it explicitly ignores conflicts. DataArchivist is the background loop: it wakes every ArchiveFrequencyInSec (default 60s), pulls a batch from DataArchivalStorage, and applies it transactionally through ArchiveDocumentsCommand.',
@@ -899,7 +899,7 @@ export const nodes: MapNode[] = [
     summary:
       'The in-house text engine, plus the HNSW-based vector similarity search it calls into for embeddings.',
     description:
-      'Analyzer composes a tokenizer (ITokenizer) with transformers like lower-casing in a staged pipeline that can resume tokenization across steps; IndexWriter then builds the inverted index - explicitly single-threaded and caller-synchronized rather than internally locked - while IndexFieldsMapping resolves each field by Slice, string or integer id. IndexSearcher executes queries against that index, switching to a bitmap representation once a term\'s postings cross a 32MB threshold, trading memory for faster set operations.\n\nVector search is a separate structure Corax calls into rather than something it implements itself: the HNSW graph lives in Voron\'s Data/Graphs/Hnsw, not in Corax. Hnsw.Create persists it as a genuine Voron structure - a tree for node lookups, a Container for the raw vector blobs, and the graph\'s own options written into that tree - so IndexSearcher just opens a Hnsw.SearchState against the current transaction and calls into it to read vectors back and run the nearest-neighbor search. A vector can be quantized before it\'s stored: VectorQuantizer reduces it to a per-vector-scaled int8 or a 1-bit/binary packing, trading precision for a smaller graph and the cheaper CosineSimilarityI8/HammingDistance kernels instead of full float32 cosine distance.',
+      '## Corax\n\nAnalyzer composes a tokenizer (ITokenizer) with transformers like lower-casing in a staged pipeline that can resume tokenization across steps; IndexWriter then builds the inverted index - explicitly single-threaded and caller-synchronized rather than internally locked - while IndexFieldsMapping resolves each field by Slice, string or integer id. IndexSearcher executes queries against that index, switching to a bitmap representation once a term\'s postings cross a 32MB threshold, trading memory for faster set operations.\n\n## Vector Search\n\nThe HNSW graph used for vector similarity search lives in Voron\'s Data/Graphs/Hnsw. Hnsw.Create persists it as a genuine Voron structure - a tree for node lookups, a Container for the raw vector blobs, and the graph\'s own options written into that tree. A vector can be quantized before it\'s stored: VectorQuantizer reduces it to a per-vector-scaled int8 or a 1-bit/binary packing, trading precision for a smaller graph and the cheaper CosineSimilarityI8/HammingDistance kernels instead of full float32 cosine distance.\n\n## How they relate\n\nVector search is a separate structure that Corax calls into rather than something it implements itself: IndexSearcher just opens a Hnsw.SearchState against the current transaction and calls into it to read vectors back and run the nearest-neighbor search.',
     references: {
       docs: [
         { name: 'Search Engine: Corax', url: 'https://docs.ravendb.net/7.2/indexes/search-engine/corax' },
@@ -1511,31 +1511,203 @@ export const nodes: MapNode[] = [
 ]
 
 export const edges: MapEdge[] = [
-  { id: 'client-security', source: 'client', target: 'security', label: 'HTTPS' },
-  { id: 'studio-security', source: 'studio', target: 'security', label: 'HTTPS' },
-  { id: 'security-http', source: 'security', target: 'http', label: 'authenticates, routes to' },
-  { id: 'http-sharding', source: 'http', target: 'sharding', label: 'sharded databases' },
-  { id: 'sharding-documents', source: 'sharding', target: 'documents-core', label: 'per-shard requests' },
-  { id: 'http-documents', source: 'http', target: 'documents-core', label: 'routes to' },
-  { id: 'http-cluster', source: 'http', target: 'cluster', label: 'server-to-server' },
-  { id: 'documents-indexing', source: 'documents-core', target: 'indexing', label: 'feeds' },
-  { id: 'indexing-engines', source: 'indexing', target: 'search-engines', label: 'written through' },
-  { id: 'documents-ai', source: 'documents-core', target: 'ai', label: 'embeddings tasks' },
-  { id: 'ai-indexing', source: 'ai', target: 'indexing', label: 'vector fields' },
-  { id: 'documents-storage', source: 'documents-core', target: 'storage', label: 'persists via' },
-  { id: 'engines-storage', source: 'search-engines', target: 'storage', label: 'persists via' },
-  { id: 'cluster-storage', source: 'cluster', target: 'storage', label: 'ACID Raft log' },
-  { id: 'documents-etl', source: 'documents-core', target: 'etl', label: 'change feed' },
-  { id: 'sinks-documents', source: 'sinks', target: 'documents-core', label: 'writes documents' },
-  { id: 'documents-integrations', source: 'documents-core', target: 'integrations', label: 'bulk ops & migration' },
-  { id: 'documents-replication', source: 'documents-core', target: 'replication', label: 'change feed' },
-  { id: 'documents-backup', source: 'documents-core', target: 'backup', label: 'ongoing task' },
-  { id: 'documents-cluster', source: 'documents-core', target: 'cluster', label: 'cluster-wide ops' },
-  { id: 'documents-tx-merger', source: 'documents-core', target: 'core-tx-merger', label: 'batches writes' },
-  { id: 'tx-merger-storage', source: 'core-tx-merger', target: 'storage', label: 'commits via' },
-  { id: 'http-queries', source: 'http', target: 'core-queries', label: 'routes to' },
-  { id: 'queries-documents', source: 'core-queries', target: 'documents-core', label: 'reads via' },
-  { id: 'documents-subscriptions', source: 'documents-core', target: 'core-subscriptions', label: 'change feed' },
+  {
+    id: 'client-security',
+    source: 'client',
+    target: 'security',
+    label: 'HTTPS',
+    description:
+      "The client authenticates every connection with an X.509 client certificate over TLS, rather than a username and password. That handshake completes before the request ever reaches the routing layer.",
+  },
+  {
+    id: 'studio-security',
+    source: 'studio',
+    target: 'security',
+    label: 'HTTPS',
+    description:
+      "Studio is just another HTTP client of the same server, so its requests go through the identical certificate-based TLS handshake as any SDK client before they're routed anywhere.",
+  },
+  {
+    id: 'security-http',
+    source: 'security',
+    target: 'http',
+    label: 'authenticates, routes to',
+    description:
+      "HttpsConnectionMiddleware validates the connecting certificate as the TLS connection is established, and the resulting authorization level is attached to the request before routing hands it to a handler - that level is what gates access to each one.",
+  },
+  {
+    id: 'http-sharding',
+    source: 'http',
+    target: 'sharding',
+    label: 'sharded databases',
+    description:
+      "When a request targets a database configured as sharded, routing hands it to ShardedDatabaseContext's execution path instead of the normal per-database handler - the client can't tell the difference either way.",
+  },
+  {
+    id: 'sharding-documents',
+    source: 'sharding',
+    target: 'documents-core',
+    label: 'per-shard requests',
+    description:
+      'ShardLocator resolves which shard (bucket) an operation belongs to, and the Executors fan it out to the Storages instance running on that shard, merging the per-shard results back into one answer.',
+  },
+  {
+    id: 'http-documents',
+    source: 'http',
+    target: 'documents-core',
+    label: 'routes to',
+    description:
+      "A non-sharded database request is routed straight to that database's Storages subsystems - documents, attachments, revisions, and the rest - once Security has authorized it.",
+  },
+  {
+    id: 'http-cluster',
+    source: 'http',
+    target: 'cluster',
+    label: 'server-to-server',
+    description:
+      'Server-to-server traffic - what nodes send each other to run Raft - arrives over the same HTTP layer as client requests, just routed to Rachis\'s own endpoints instead of a database handler.',
+  },
+  {
+    id: 'documents-indexing',
+    source: 'documents-core',
+    target: 'indexing',
+    label: 'feeds',
+    description:
+      "Every write to Storages bumps the changed document's etag on the internal change feed. Each Index's own indexing thread tails that feed and reindexes whatever changed - the same mechanism ETL and Data Subscriptions key off too.",
+  },
+  {
+    id: 'indexing-engines',
+    source: 'indexing',
+    target: 'search-engines',
+    label: 'written through',
+    description:
+      "IndexStore is engine-agnostic - an index is actually written through whichever of Corax or Lucene is configured for it. That's what turns an indexed field into something a query can search.",
+  },
+  {
+    id: 'documents-ai',
+    source: 'documents-core',
+    target: 'ai',
+    label: 'embeddings tasks',
+    description:
+      'EmbeddingsGenerationTask is itself a kind of ETL process, so it tails the same document change feed an index does rather than hooking synchronously into the write path. It hands each batch to AiWorker to chunk and embed.',
+  },
+  {
+    id: 'ai-indexing',
+    source: 'ai',
+    target: 'indexing',
+    label: 'vector fields',
+    description:
+      "Once AiWorker has a vector for a chunk - freshly generated, or reused from the Embeddings Cache by content hash - it's written onto the document as a vector field, and Indexing picks it up like any other field without needing to know an AI provider was involved.",
+  },
+  {
+    id: 'documents-storage',
+    source: 'documents-core',
+    target: 'storage',
+    label: 'persists via',
+    description:
+      'Every Storages subsystem - documents, attachments, revisions and the rest - is built directly on a Voron storage environment; nothing on this side of the diagram reaches disk any other way.',
+  },
+  {
+    id: 'engines-storage',
+    source: 'search-engines',
+    target: 'storage',
+    label: 'persists via',
+    description:
+      "Corax persists its inverted index - and the HNSW graph behind vector search - through Voron directly; Lucene does the same via LuceneVoronDirectory. Both engines end up on the same storage engine underneath.",
+  },
+  {
+    id: 'cluster-storage',
+    source: 'cluster',
+    target: 'storage',
+    label: 'ACID Raft log',
+    description: "Rachis keeps its own Raft log ACID by storing it in Voron - the same durability guarantee every other subsystem on this map gets from the same engine.",
+  },
+  {
+    id: 'documents-etl',
+    source: 'documents-core',
+    target: 'etl',
+    label: 'change feed',
+    description:
+      "Like an index, an outgoing ETL process tails Storages' change feed by etag and transforms whatever changed for its configured destination - it doesn't hook synchronously into the write path either.",
+  },
+  {
+    id: 'sinks-documents',
+    source: 'sinks',
+    target: 'documents-core',
+    label: 'writes documents',
+    description:
+      "A Sink (QueueSink or CdcSink) runs the same shape as ETL in reverse: it consumes an external stream - a message queue or a change-data-capture feed - and writes the resulting documents into Storages like any other write.",
+  },
+  {
+    id: 'documents-integrations',
+    source: 'documents-core',
+    target: 'integrations',
+    label: 'bulk ops & migration',
+    description:
+      "Smuggler's bulk import/export, SqlMigration's one-time pull, and the PostgreSQL protocol's direct queries all read and write Storages directly - independent of the ongoing-task machinery ETL and Sinks use.",
+  },
+  {
+    id: 'documents-replication',
+    source: 'documents-core',
+    target: 'replication',
+    label: 'change feed',
+    description:
+      'A committed change is exposed on the same internal change feed Replication reads from. ReplicationLoader streams it to the destination, which applies it or raises a conflict based on comparing change vectors.',
+  },
+  {
+    id: 'documents-backup',
+    source: 'documents-core',
+    target: 'backup',
+    label: 'ongoing task',
+    description:
+      "A scheduled BackupTask reads a database's Storages state on the responsible node and writes a full or incremental backup - a logical export or a Voron snapshot - to the configured destination.",
+  },
+  {
+    id: 'documents-cluster',
+    source: 'documents-core',
+    target: 'cluster',
+    label: 'cluster-wide ops',
+    description:
+      "An operation that touches cluster-wide state - compare-exchange, a cluster transaction - is raised as a command to Rachis instead of being handled as a local write, and only commits once a majority of nodes acknowledge it.",
+  },
+  {
+    id: 'documents-tx-merger',
+    source: 'documents-core',
+    target: 'core-tx-merger',
+    label: 'batches writes',
+    description:
+      "Storages hands a validated write to TransactionMerger rather than committing it directly - it's queued there and merged with other pending operations into one shared Voron transaction.",
+  },
+  {
+    id: 'tx-merger-storage',
+    source: 'core-tx-merger',
+    target: 'storage',
+    label: 'commits via',
+    description:
+      "TransactionMerger's single dedicated thread commits its batched queue as one Voron write transaction - what lets many concurrent writers merge into a transaction without blocking each other directly on Voron's single-writer model.",
+  },
+  {
+    id: 'http-queries',
+    source: 'http',
+    target: 'core-queries',
+    label: 'routes to',
+    description: 'An RQL query request is routed to AbstractQueryRunner, which parses it and matches it against a static or auto-index.',
+  },
+  {
+    id: 'queries-documents',
+    source: 'core-queries',
+    target: 'documents-core',
+    label: 'reads via',
+    description: "Once a query is parsed, AbstractQueryRunner hands it to IndexStore - part of Storages - to run against the matched index and read back the results.",
+  },
+  {
+    id: 'documents-subscriptions',
+    source: 'documents-core',
+    target: 'core-subscriptions',
+    label: 'change feed',
+    description:
+      "SubscriptionStorage pushes matching documents to a worker as they change on the same internal feed, resuming from the change vector its last acknowledged batch ended on rather than replaying the whole collection.",
+  },
 ]
 
 export function getChildren(nodeId: string): MapNode[] {

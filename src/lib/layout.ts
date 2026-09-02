@@ -37,12 +37,15 @@ export const MACRO_POSITIONS: Record<string, { x: number; y: number }> = {
   // Centered under TransactionMerger (x:710, same as Storages above it),
   // and lined up with Clustering to its right on the same row.
   storage: { x: 600, y: 1090 },
-  // Replication and Clustering sit off to the right of the Storage Engine /
-  // TransactionMerger column, stacked vertically - "ACID Raft log" reads as
-  // a short straight edge between Storage Engine and Clustering, both now
-  // on the same row.
-  replication: { x: 900, y: 930 },
+  // Clustering and Replication sit off to the right of the Storage Engine /
+  // TransactionMerger column, side by side on the same row as Storage Engine
+  // - "ACID Raft log" reads as a short straight edge between Storage Engine
+  // and Clustering. Stacking Replication directly above Clustering used to
+  // put both of Storages' edges into this pair on the exact same vertical
+  // line, running straight through whichever of the two sat closer; sitting
+  // beside each other instead gives each its own approach.
   cluster: { x: 900, y: 1090 },
+  replication: { x: 1200, y: 1090 },
   // Right column: all six of Storages'/HTTP's "other side" connections
   // stack in one column off to the right, in reading order top to bottom -
   // Queries, Backup, Subscriptions, ETL, Sinks, Integrations - each one

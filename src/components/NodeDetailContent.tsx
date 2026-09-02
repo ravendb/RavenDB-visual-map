@@ -25,7 +25,19 @@ export default function NodeDetailContent({ nodeId, theme }: NodeDetailContentPr
       <h2>{node.label}</h2>
 
       <p className="detail-panel__summary">{highlightTerms(node.summary)}</p>
-      {node.description && <p className="detail-panel__description">{highlightTerms(node.description)}</p>}
+      {node.description && (
+        <div className="detail-panel__description">
+          {node.description.split('\n\n').map((block, i) =>
+            block.startsWith('## ') ? (
+              <h4 key={i} className="detail-panel__subheading">
+                {block.slice(3)}
+              </h4>
+            ) : (
+              <p key={i}>{highlightTerms(block)}</p>
+            ),
+          )}
+        </div>
+      )}
 
       <div className="detail-panel__section detail-panel__references">
         <h3>References</h3>

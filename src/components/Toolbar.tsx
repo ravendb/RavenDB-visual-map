@@ -34,7 +34,6 @@ export default function Toolbar({
   activeFlowId,
   onStartFlow,
   onStopFlow,
-  onOpenFreeform,
 }: ToolbarProps) {
   const [exporting, setExporting] = useState(false)
 
@@ -90,9 +89,6 @@ export default function Toolbar({
       </select>
 
       <div className="toolbar__export">
-        <button onClick={onOpenFreeform} title="Drag tiles anywhere you like, arrangement saved locally">
-          Free layout
-        </button>
         <button
           className="toolbar__theme-toggle"
           onClick={onToggleTheme}
