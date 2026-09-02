@@ -582,6 +582,38 @@
   margin-top: 0;
 }
 
+.detail-panel__code-label {
+  margin: 0 0 4px;
+  font-weight: 600;
+  color: var(--color-heading);
+}
+
+.detail-panel__code-block {
+  position: relative;
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-code-border);
+  border-radius: 6px;
+  background: var(--color-code-bg);
+  font-family: ui-monospace, 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-code-text);
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.detail-panel__code-lang {
+  position: absolute;
+  top: 6px;
+  right: 10px;
+  font-family: ui-monospace, 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
 /* Class/type names, protocol acronyms, and domain jargon (etag, Voron, ...)
    picked out of prose by src/lib/highlightTerms.tsx. */
 .inline-code {
