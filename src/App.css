@@ -561,6 +561,27 @@
   margin-bottom: 14px;
 }
 
+.detail-panel__description p {
+  margin: 0 0 10px;
+}
+
+.detail-panel__description p:last-child {
+  margin-bottom: 0;
+}
+
+.detail-panel__subheading {
+  margin: 14px 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text);
+}
+
+.detail-panel__subheading:first-child {
+  margin-top: 0;
+}
+
 /* Class/type names, protocol acronyms, and domain jargon (etag, Voron, ...)
    picked out of prose by src/lib/highlightTerms.tsx. */
 .inline-code {

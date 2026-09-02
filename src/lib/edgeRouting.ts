@@ -252,6 +252,45 @@ export function assignLanes<T extends RoutableEdge>(
     return { edge: e, sourceSide, targetSide, level, sourceLevelOffset, targetLevelOffset }
   })
 
+  // A level edge's offset is derived purely from its own source/target box
+  // geometry, with no awareness of any other edge - so two level edges that
+  // share a node+side (e.g. one hub straight-through to two different
+  // targets that happen to sit in the same column, one above the other)
+  // compute the exact same point and run on top of each other for their
+  // entire shared span instead of merely crossing near it. Spread every
+  // such colliding group evenly around their shared point so they read as
+  // parallel lines from the moment they leave the shared node.
+  const LEVEL_SPREAD = 14
+  function spreadCollidingLevelOffsets(getKey: (s: (typeof sides)[number]) => string, getOffset: (s: (typeof sides)[number]) => number, setOffset: (s: (typeof sides)[number], value: number) => void) {
+    const groups = new Map<string, (typeof sides)[number][]>()
+    sides.forEach((s) => {
+      if (!s.level) return
+      const key = getKey(s)
+      groups.set(key, [...(groups.get(key) ?? []), s])
+    })
+    groups.forEach((list) => {
+      if (list.length < 2) return
+      list.sort((a, b) => a.edge.id.localeCompare(b.edge.id))
+      const base = getOffset(list[0])
+      const start = base - (LEVEL_SPREAD * (list.length - 1)) / 2
+      list.forEach((s, i) => setOffset(s, Math.min(96, Math.max(4, start + i * LEVEL_SPREAD))))
+    })
+  }
+  spreadCollidingLevelOffsets(
+    (s) => `${s.edge.source}:${s.sourceSide}`,
+    (s) => s.sourceLevelOffset,
+    (s, value) => {
+      s.sourceLevelOffset = value
+    },
+  )
+  spreadCollidingLevelOffsets(
+    (s) => `${s.edge.target}:${s.targetSide}`,
+    (s) => s.targetLevelOffset,
+    (s, value) => {
+      s.targetLevelOffset = value
+    },
+  )
+
   // Each lane entry remembers where the *other* end of its edge actually
   // sits, so the group can be ordered by that instead of by edge id.
   interface LaneEntry {
