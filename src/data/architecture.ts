@@ -84,11 +84,44 @@ export const nodes: MapNode[] = [
   // ---------------------------------------------------------------------
   {
     id: 'client',
-    label: 'Client SDK',
+    label: 'Client SDKs',
     category: 'client',
-    summary: 'The .NET client library applications use to talk to RavenDB: sessions, queries, bulk inserts, subscriptions.',
+    summary: 'The client library applications use to talk to RavenDB: sessions, queries, bulk inserts, subscriptions. One of several officially supported client SDKs (.NET, Java, Node.js, Python, PHP, Ruby, Go).',
     description:
-      'Raven.Client is what .NET application code links against. It builds HTTP requests for the server API and tracks entities in a session (unit of work). RavenDB also ships official clients for other languages - including Java, Node.js, Python, PHP, Ruby and Go - all speaking the same wire protocol this one implements; none of that lives in this repository, so the exact list needs a subsystem expert to confirm rather than this repo\'s source.',
+      'The client library is what application code links against.\n\n' +
+      'It builds HTTP requests for the server API and tracks entities in a session (unit of work) - open a session, load or query entities, mutate them like plain objects, then call SaveChanges() to flush every tracked change in one request.\n\n' +
+      'This repository contains Raven.Client, the .NET implementation; the other officially supported languages live in their own repos.\n\n' +
+      '## Officially supported languages\n\n' +
+      'RavenDB ships official client SDKs for .NET, Java, Node.js, Python, PHP, Ruby and Go. All of them speak the same wire protocol and expose the same session-based API shape (open a session, load/query, mutate, save) - only the syntax changes.\n\n' +
+      '.NET:\n\n' +
+      '```csharp\n' +
+      'using var session = store.OpenSession();\n' +
+      'var order = session.Load<Order>("orders/1-A");\n' +
+      'order.ShippedAt = DateTime.UtcNow;\n' +
+      'session.SaveChanges();\n' +
+      '```\n\n' +
+      'Java:\n\n' +
+      '```java\n' +
+      'try (IDocumentSession session = store.openSession()) {\n' +
+      '    Order order = session.load(Order.class, "orders/1-A");\n' +
+      '    order.setShippedAt(new Date());\n' +
+      '    session.saveChanges();\n' +
+      '}\n' +
+      '```\n\n' +
+      'Node.js:\n\n' +
+      '```javascript\n' +
+      'const session = documentStore.openSession();\n' +
+      'const order = await session.load("orders/1-A");\n' +
+      'order.shippedAt = new Date();\n' +
+      'await session.saveChanges();\n' +
+      '```\n\n' +
+      'Python:\n\n' +
+      '```python\n' +
+      'with document_store.open_session() as session:\n' +
+      '    order = session.load("orders/1-A", Order)\n' +
+      '    order.shipped_at = datetime.utcnow()\n' +
+      '    session.save_changes()\n' +
+      '```',
     references: {
       docs: [
         { name: 'Client SDK', url: 'https://docs.ravendb.net/7.2/client-api/what-is-a-document-store' },
@@ -899,7 +932,7 @@ export const nodes: MapNode[] = [
     summary:
       'The in-house text engine, plus the HNSW-based vector similarity search it calls into for embeddings.',
     description:
-      '## Corax\n\nAnalyzer composes a tokenizer (ITokenizer) with transformers like lower-casing in a staged pipeline that can resume tokenization across steps; IndexWriter then builds the inverted index - explicitly single-threaded and caller-synchronized rather than internally locked - while IndexFieldsMapping resolves each field by Slice, string or integer id. IndexSearcher executes queries against that index, switching to a bitmap representation once a term\'s postings cross a 32MB threshold, trading memory for faster set operations.\n\n## Vector Search\n\nThe HNSW graph used for vector similarity search lives in Voron\'s Data/Graphs/Hnsw. Hnsw.Create persists it as a genuine Voron structure - a tree for node lookups, a Container for the raw vector blobs, and the graph\'s own options written into that tree. A vector can be quantized before it\'s stored: VectorQuantizer reduces it to a per-vector-scaled int8 or a 1-bit/binary packing, trading precision for a smaller graph and the cheaper CosineSimilarityI8/HammingDistance kernels instead of full float32 cosine distance.\n\n## How they relate\n\nVector search is a separate structure that Corax calls into rather than something it implements itself: IndexSearcher just opens a Hnsw.SearchState against the current transaction and calls into it to read vectors back and run the nearest-neighbor search.',
+      '## Corax\n\nCorax is RavenDB\'s in-house full-text search engine - an inverted index built and queried entirely in-house, without depending on Lucene. Documents flow in through an Analyzer, which composes a tokenizer (ITokenizer) with transformers like lower-casing in a staged pipeline that can resume tokenization across steps; IndexWriter then builds the inverted index from those tokens - explicitly single-threaded and caller-synchronized rather than internally locked - while IndexFieldsMapping resolves each field by Slice, string or integer id. At query time, IndexSearcher walks that index, switching a term\'s postings to a bitmap representation once they cross a 32MB threshold, trading memory for faster set operations.\n\n## Vector Search\n\nThe HNSW graph used for vector similarity search lives in Voron\'s Data/Graphs/Hnsw. Hnsw.Create persists it as a genuine Voron structure - a tree for node lookups, a Container for the raw vector blobs, and the graph\'s own options written into that tree. A vector can be quantized before it\'s stored: VectorQuantizer reduces it to a per-vector-scaled int8 or a 1-bit/binary packing, trading precision for a smaller graph and the cheaper CosineSimilarityI8/HammingDistance kernels instead of full float32 cosine distance.\n\n## How they relate\n\nVector search is a separate structure that Corax calls into rather than something it implements itself: IndexSearcher just opens a Hnsw.SearchState against the current transaction and calls into it to read vectors back and run the nearest-neighbor search.',
     references: {
       docs: [
         { name: 'Search Engine: Corax', url: 'https://docs.ravendb.net/7.2/indexes/search-engine/corax' },

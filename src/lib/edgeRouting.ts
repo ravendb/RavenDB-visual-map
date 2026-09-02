@@ -257,15 +257,29 @@ export function pickSides(sourceBox: Box, targetBox: Box, obstacles: Box[]): { s
   // both left/right) bends at the midpoint between the two nodes by
   // default, which is exactly where an unrelated node placed between them
   // tends to sit. Perpendicular handles instead force the bend to the
-  // target's own row/column, so the path hugs the source's column down (or
+  // target's own row/column, so the path hugs one node's column down (or
   // row across) - clear of anything else - and only turns once it's
   // already alongside the target. Anything short of a real tie keeps the
   // dominant-axis pick below instead - it already routes those edges clear
   // of whatever sits in the source's own column/row.
-  if (larger > 0 && smaller / larger >= DIAGONAL_TIE_THRESHOLD && !hugCrossesObstacle('x', sourceBox, targetBox, obstacles)) {
-    return {
-      sourceSide: dy > 0 ? 'bottom' : 'top',
-      targetSide: dx > 0 ? 'left' : 'right',
+  // Prefer entering the target vertically (top/bottom) - matching the
+  // downward/upward flow this map is mostly drawn in - over entering from
+  // the side, same reasoning as the dominant-axis pick below. That means
+  // hugging the source's row (horizontal exit) rather than its column, so
+  // the obstacle check hugs 'y' instead of 'x'; fall back to the
+  // column-hugging, side-entering shape only when that's blocked.
+  if (larger > 0 && smaller / larger >= DIAGONAL_TIE_THRESHOLD) {
+    if (!hugCrossesObstacle('y', sourceBox, targetBox, obstacles)) {
+      return {
+        sourceSide: dx > 0 ? 'right' : 'left',
+        targetSide: dy > 0 ? 'top' : 'bottom',
+      }
+    }
+    if (!hugCrossesObstacle('x', sourceBox, targetBox, obstacles)) {
+      return {
+        sourceSide: dy > 0 ? 'bottom' : 'top',
+        targetSide: dx > 0 ? 'left' : 'right',
+      }
     }
   }
   // The minor axis is negligible - the nodes are essentially aligned on it -
@@ -292,21 +306,31 @@ export function pickSides(sourceBox: Box, targetBox: Box, obstacles: Box[]): { s
   // block the turn leg even while the hug leg runs clear past it). If the
   // preferred shape is blocked, try the other orientation before giving up
   // to the obstacle-blind fallback below.
+  //
+  // Between the two shapes, rowHug is the one whose target handle is
+  // top/bottom - the arrowhead lands pointing straight down (or up) into
+  // the target, matching how a mostly-vertical connection actually reads.
+  // columnHug's target handle is left/right instead, so its arrowhead
+  // points sideways into the target even when the edge is overwhelmingly
+  // vertical - fine for a genuinely horizontal-dominant pair (rowHug is
+  // already preferred there below), but visually wrong for a vertical-
+  // dominant one. So rowHug is tried first regardless of which axis
+  // dominates, and columnHug is only the fallback when rowHug's corridor is
+  // actually blocked.
   const rowHug = { sourceSide: (dx > 0 ? 'right' : 'left') as HandleSide, targetSide: (dy > 0 ? 'top' : 'bottom') as HandleSide }
   const columnHug = { sourceSide: (dy > 0 ? 'bottom' : 'top') as HandleSide, targetSide: (dx > 0 ? 'left' : 'right') as HandleSide }
-  if (absDx > absDy) {
-    if (!rowHugBlocked(sourceBox, targetBox, obstacles)) return rowHug
-    if (!columnHugBlocked(sourceBox, targetBox, obstacles)) return columnHug
-    if (crossAxisDetourBend(sourceBox, targetBox, obstacles, 'x') !== undefined) {
-      return { sourceSide: dx > 0 ? 'right' : 'left', targetSide: dx > 0 ? 'left' : 'right' }
-    }
-  } else {
-    if (!columnHugBlocked(sourceBox, targetBox, obstacles)) return columnHug
-    if (!rowHugBlocked(sourceBox, targetBox, obstacles)) return rowHug
-    if (crossAxisDetourBend(sourceBox, targetBox, obstacles, 'y') !== undefined) {
-      return { sourceSide: dy > 0 ? 'bottom' : 'top', targetSide: dy > 0 ? 'top' : 'bottom' }
-    }
-  }
+  const verticalZ = { sourceSide: (dy > 0 ? 'bottom' : 'top') as HandleSide, targetSide: (dy > 0 ? 'top' : 'bottom') as HandleSide }
+  const horizontalZ = { sourceSide: (dx > 0 ? 'right' : 'left') as HandleSide, targetSide: (dx > 0 ? 'left' : 'right') as HandleSide }
+  // rowHug's vertical entry is tried first, and even once it's blocked, a
+  // Z-shaped detour that still enters vertically (verticalZ) is tried before
+  // ever settling for columnHug's sideways entry - a couple of extra bends
+  // beats an arrowhead pointing the wrong way. columnHug (and its own
+  // Z-shaped fallback) only come in once every vertical-entry option is
+  // actually exhausted.
+  if (!rowHugBlocked(sourceBox, targetBox, obstacles)) return rowHug
+  if (crossAxisDetourBend(sourceBox, targetBox, obstacles, 'y') !== undefined) return verticalZ
+  if (!columnHugBlocked(sourceBox, targetBox, obstacles)) return columnHug
+  if (crossAxisDetourBend(sourceBox, targetBox, obstacles, 'x') !== undefined) return horizontalZ
   return absDx > absDy ? rowHug : columnHug
 }
 
