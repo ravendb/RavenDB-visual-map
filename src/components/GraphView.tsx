@@ -16,8 +16,10 @@ import type { Theme } from '../lib/theme'
 import { CATEGORY_COLORS } from '../lib/categoryColors'
 import { assignLanes, type Box } from '../lib/edgeRouting'
 import MapNode, { type MapNodeData } from './MapNode'
+import MapEdge from './MapEdge'
 
 const nodeTypes = { mapNode: MapNode }
+const edgeTypes = { mapEdge: MapEdge }
 
 const THEME_COLORS: Record<Theme, { dot: string; edge: string; edgeLabel: string; labelBg: string; minimapNode: string; minimapMask: string }> = {
   dark: { dot: '#262c47', edge: '#4a5178', edgeLabel: '#c7ccec', labelBg: '#1a2036', minimapNode: '#4a5178', minimapMask: 'rgba(15, 20, 37, 0.7)' },
@@ -41,7 +43,12 @@ const CHILD_CARD_WIDTH = 250
 const CHILD_CARD_HEIGHT = 48
 const CHILD_GAP = 10
 const EXPANDED_PADDING = 14
-const EXPANDED_HEADER_HEIGHT = 96
+// Measured from an actual expanded card's DOM (badge + title, before the
+// children grid starts) - was overstated at 96, which left ~24px of dead
+// space below the real card bottom inside the box React Flow was told to
+// route edges against, so edges targeting the node's bottom side visibly
+// stopped short of the card instead of touching it.
+const EXPANDED_HEADER_HEIGHT = 72
 
 interface GraphViewProps {
   expandedNodeId: string | null
@@ -204,7 +211,7 @@ function buildFlowElements(
       target: e.target,
       selected: e.id === selectedEdgeId,
       ...edgeAnchors.get(e.id),
-      type: 'smoothstep',
+      type: 'mapEdge',
       label: e.label,
       animated: isFlowEdge,
       style: { stroke: edgeColor, strokeWidth: isFlowEdge ? 2.5 : 1.5, opacity: inFocus ? (isFlowEdge ? 1 : 0.8) : 0.1 },
@@ -392,6 +399,7 @@ const GraphView = forwardRef<HTMLDivElement, GraphViewProps>(function GraphView(
         nodes={flowNodes}
         edges={flowEdges}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         onNodeClick={(event, node) => {
           // The parent card and every child tile carry their own close (x).
           // For a node with children, that collapses its expanded view (same

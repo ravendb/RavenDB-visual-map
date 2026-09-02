@@ -27,6 +27,12 @@ const DIAGONAL_TIE_THRESHOLD = 0.95
 // Below this offset, an axis counts as negligible - the nodes are
 // essentially aligned on it rather than genuinely offset.
 const LEVEL_EPSILON = 10
+// How far to the left of a blocking obstacle a detoured vertical edge clears
+// it by, and how close to the target's own edge the detour's turn sits (kept
+// small so most of the run stays a straight hug, with only a short jog right
+// before turning into the target).
+const DETOUR_CLEARANCE = 20
+const DETOUR_BEND_MARGIN = 20
 
 export function boxCenter(box: Box) {
   return { x: box.x + box.width / 2, y: box.y + box.height / 2 }
@@ -96,6 +102,44 @@ function rowHugBlocked(sourceBox: Box, targetBox: Box, obstacles: Box[]): boolea
   )
 }
 
+// A vertically-level pair (source and target's x-ranges overlap, so the
+// straight-down line between them shares a single x) can still have a third
+// node sitting directly in that column - e.g. TransactionMerger, centered in
+// the exact same column as both Storages above it and the Storage Engine
+// below. Unlike the general dominant-axis case, a level pair never bends, so
+// it needs its own detour: hug a column just left of the obstacle for most of
+// the run, then jog back right into the target right before entering it, in
+// whatever clear gap sits between the obstacle and the target.
+function verticalDetour(
+  sourceBox: Box,
+  targetBox: Box,
+  lo: number,
+  hi: number,
+  obstacles: Box[],
+): { sourceOffset: number; targetOffset: number; stepPosition: number } | undefined {
+  const travelMin = Math.min(sourceBox.y + sourceBox.height, targetBox.y)
+  const travelMax = Math.max(sourceBox.y + sourceBox.height, targetBox.y)
+  const blocker = obstacles.find(
+    (box) => rangeOverlap(lo, hi, box.x, box.x + box.width) && rangeOverlap(travelMin, travelMax, box.y, box.y + box.height),
+  )
+  if (!blocker) return undefined
+  const shared = (lo + hi) / 2
+  const detourX = Math.max(sourceBox.x + 4, blocker.x - DETOUR_CLEARANCE)
+  const sourceOnTop = sourceBox.y < targetBox.y
+  const bendY = sourceOnTop
+    ? Math.max(blocker.y + blocker.height + DETOUR_BEND_MARGIN, targetBox.y - DETOUR_BEND_MARGIN)
+    : Math.min(blocker.y - DETOUR_BEND_MARGIN, targetBox.y + targetBox.height + DETOUR_BEND_MARGIN)
+  const sourceHandleY = sourceOnTop ? sourceBox.y + sourceBox.height : sourceBox.y
+  const targetHandleY = sourceOnTop ? targetBox.y : targetBox.y + targetBox.height
+  const span = targetHandleY - sourceHandleY
+  const fraction = span !== 0 ? (bendY - sourceHandleY) / span : 0.5
+  return {
+    sourceOffset: Math.min(96, Math.max(4, ((detourX - sourceBox.x) / sourceBox.width) * 100)),
+    targetOffset: Math.min(96, Math.max(4, ((shared - targetBox.x) / targetBox.width) * 100)),
+    stepPosition: Math.min(0.92, Math.max(0.08, fraction)),
+  }
+}
+
 // Column-hug shape: source exits top/bottom at its own column, travels to
 // target's row, then turns left/right into target. Mirror of rowHugBlocked.
 function columnHugBlocked(sourceBox: Box, targetBox: Box, obstacles: Box[]): boolean {
@@ -108,6 +152,78 @@ function columnHugBlocked(sourceBox: Box, targetBox: Box, obstacles: Box[]): boo
   return (
     segmentBlocked('vertical', sourceCenter.x, yMin, yMax, obstacles) || segmentBlocked('horizontal', targetCenter.y, xMin, xMax, obstacles)
   )
+}
+
+// Z-shaped last resort: source exits its own row/column at the edge facing
+// target, jogs the middle leg through some clear corridor between the two
+// boxes, then turns the rest of the way into target's own facing side. Used
+// only when both rowHug and columnHug are blocked - e.g. a source and
+// target that sit in entirely different row *and* column stacks, so neither
+// hug's single bend can dodge a third node embedded in one of those stacks
+// (Storages -> Integrations passes both ETL/Sinks, stacked directly above
+// Integrations in its column, and TransactionMerger, sitting in Storages'
+// own column below it).
+//
+// The corridor's obvious first choice is its midpoint (also what
+// assignLanes' default center-of-box handle offset and 0.5 stepPosition
+// produce when nothing overrides them), but a third node can occupy that
+// exact midpoint while leaving the rest of the gap clear - e.g. Clustering,
+// sitting between Storages and Replication - so this searches outward from
+// the midpoint for any coordinate where all three legs are clear, instead
+// of giving up on the whole shape the moment the midpoint itself is blocked.
+// Returns the chosen bend coordinate (an x for a 'x'-dominant pair, a y for
+// 'y'-dominant), or undefined if no clear coordinate exists anywhere in the
+// gap.
+function crossAxisDetourBend(sourceBox: Box, targetBox: Box, obstacles: Box[], dominant: 'x' | 'y'): number | undefined {
+  const sourceCenter = boxCenter(sourceBox)
+  const targetCenter = boxCenter(targetBox)
+  const forward = dominant === 'x' ? targetCenter.x > sourceCenter.x : targetCenter.y > sourceCenter.y
+  const sourceEdge =
+    dominant === 'x'
+      ? forward
+        ? sourceBox.x + sourceBox.width
+        : sourceBox.x
+      : forward
+        ? sourceBox.y + sourceBox.height
+        : sourceBox.y
+  const targetEdge =
+    dominant === 'x' ? (forward ? targetBox.x : targetBox.x + targetBox.width) : forward ? targetBox.y : targetBox.y + targetBox.height
+  const gapMin = Math.min(sourceEdge, targetEdge)
+  const gapMax = Math.max(sourceEdge, targetEdge)
+  const crossMin = dominant === 'x' ? Math.min(sourceCenter.y, targetCenter.y) : Math.min(sourceCenter.x, targetCenter.x)
+  const crossMax = dominant === 'x' ? Math.max(sourceCenter.y, targetCenter.y) : Math.max(sourceCenter.x, targetCenter.x)
+  function segmentsClear(bend: number): boolean {
+    if (dominant === 'x') {
+      return (
+        !segmentBlocked('horizontal', sourceCenter.y, Math.min(sourceEdge, bend), Math.max(sourceEdge, bend), obstacles) &&
+        !segmentBlocked('vertical', bend, crossMin, crossMax, obstacles) &&
+        !segmentBlocked('horizontal', targetCenter.y, Math.min(bend, targetEdge), Math.max(bend, targetEdge), obstacles)
+      )
+    }
+    return (
+      !segmentBlocked('vertical', sourceCenter.x, Math.min(sourceEdge, bend), Math.max(sourceEdge, bend), obstacles) &&
+      !segmentBlocked('horizontal', bend, crossMin, crossMax, obstacles) &&
+      !segmentBlocked('vertical', targetCenter.x, Math.min(bend, targetEdge), Math.max(bend, targetEdge), obstacles)
+    )
+  }
+  const midpoint = (sourceEdge + targetEdge) / 2
+  if (segmentsClear(midpoint)) return midpoint
+  // The midpoint's blocked - try just past whichever obstacle(s) actually
+  // sit in the gap, on either side of it, closest to the midpoint first.
+  const candidates = obstacles
+    .filter((box) => {
+      const boxMin = dominant === 'x' ? box.x : box.y
+      const boxMax = dominant === 'x' ? box.x + box.width : box.y + box.height
+      return rangeOverlap(gapMin, gapMax, boxMin, boxMax)
+    })
+    .flatMap((box) => {
+      const boxMin = dominant === 'x' ? box.x : box.y
+      const boxMax = dominant === 'x' ? box.x + box.width : box.y + box.height
+      return [boxMin - DETOUR_CLEARANCE, boxMax + DETOUR_CLEARANCE]
+    })
+    .filter((c) => c > gapMin + 4 && c < gapMax - 4)
+    .sort((a, b) => Math.abs(a - midpoint) - Math.abs(b - midpoint))
+  return candidates.find(segmentsClear)
 }
 
 // Which side an edge should leave/enter a node from, based on where the other
@@ -181,9 +297,15 @@ export function pickSides(sourceBox: Box, targetBox: Box, obstacles: Box[]): { s
   if (absDx > absDy) {
     if (!rowHugBlocked(sourceBox, targetBox, obstacles)) return rowHug
     if (!columnHugBlocked(sourceBox, targetBox, obstacles)) return columnHug
+    if (crossAxisDetourBend(sourceBox, targetBox, obstacles, 'x') !== undefined) {
+      return { sourceSide: dx > 0 ? 'right' : 'left', targetSide: dx > 0 ? 'left' : 'right' }
+    }
   } else {
     if (!columnHugBlocked(sourceBox, targetBox, obstacles)) return columnHug
     if (!rowHugBlocked(sourceBox, targetBox, obstacles)) return rowHug
+    if (crossAxisDetourBend(sourceBox, targetBox, obstacles, 'y') !== undefined) {
+      return { sourceSide: dy > 0 ? 'bottom' : 'top', targetSide: dy > 0 ? 'top' : 'bottom' }
+    }
   }
   return absDx > absDy ? rowHug : columnHug
 }
@@ -207,7 +329,7 @@ export function assignLanes<T extends RoutableEdge>(
   nodeIds: string[],
   boxOf: (id: string) => Box,
 ): {
-  edgeAnchors: Map<string, { sourceHandle: string; targetHandle: string; pathOptions?: { stepPosition: number } }>
+  edgeAnchors: Map<string, { sourceHandle: string; targetHandle: string; pathOptions: { offset: number; stepPosition?: number } }>
   nodeHandles: Map<string, NodeHandleSpec[]>
 } {
   // Every node's box, so a route can be checked against whatever else is
@@ -234,6 +356,25 @@ export function assignLanes<T extends RoutableEdge>(
     let level = false
     let sourceLevelOffset = 50
     let targetLevelOffset = 50
+    // The axis a level pair is aligned along, and the shared absolute
+    // coordinate on that axis both ends currently attach at - kept (not just
+    // the two derived percentages) so a later collision-spread pass can shift
+    // *one* absolute point and re-derive both ends' percentages from it,
+    // rather than shifting each end's percentage independently and letting a
+    // straight line go diagonal when only one end collides with something.
+    let levelAxis: 'x' | 'y' | undefined
+    let levelShared = 0
+    // A forced route overrides the normal level/lane machinery entirely: a
+    // fixed source offset, target offset and bend position, used when a
+    // level pair's straight line is blocked by a third node sitting right in
+    // its shared column (see verticalDetour) - kept separate from `level` so
+    // the collision-spread pass below (which re-derives both ends from a
+    // single shared coordinate) can't clobber it.
+    let forced: { sourceOffset: number; targetOffset: number; stepPosition: number } | undefined
+    // Like `forced`, but overrides only the bend position, leaving both
+    // ends' offsets to the normal lane-group flow - see the bothHorizontal
+    // Z-shape branch below.
+    let forcedStep: number | undefined
     if (bothHorizontal && rangeOverlap(sourceBox.y, sourceBox.y + sourceBox.height, targetBox.y, targetBox.y + targetBox.height)) {
       const lo = Math.max(sourceBox.y, targetBox.y)
       const hi = Math.min(sourceBox.y + sourceBox.height, targetBox.y + targetBox.height)
@@ -241,15 +382,56 @@ export function assignLanes<T extends RoutableEdge>(
       sourceLevelOffset = ((shared - sourceBox.y) / sourceBox.height) * 100
       targetLevelOffset = ((shared - targetBox.y) / targetBox.height) * 100
       level = true
+      levelAxis = 'y'
+      levelShared = shared
     } else if (bothVertical && rangeOverlap(sourceBox.x, sourceBox.x + sourceBox.width, targetBox.x, targetBox.x + targetBox.width)) {
       const lo = Math.max(sourceBox.x, targetBox.x)
       const hi = Math.min(sourceBox.x + sourceBox.width, targetBox.x + targetBox.width)
-      const shared = (lo + hi) / 2
-      sourceLevelOffset = ((shared - sourceBox.x) / sourceBox.width) * 100
-      targetLevelOffset = ((shared - targetBox.x) / targetBox.width) * 100
-      level = true
+      const detour = verticalDetour(sourceBox, targetBox, lo, hi, obstacles)
+      if (detour) {
+        forced = detour
+      } else {
+        const shared = (lo + hi) / 2
+        sourceLevelOffset = ((shared - sourceBox.x) / sourceBox.width) * 100
+        targetLevelOffset = ((shared - targetBox.x) / targetBox.width) * 100
+        level = true
+        levelAxis = 'x'
+        levelShared = shared
+      }
+    } else if (bothHorizontal) {
+      // Z-shape (see crossAxisDetourBend): no shared row to run level
+      // through, so the bend needs an explicit clear column rather than the
+      // geometric midpoint getSmoothStepPath's default stepPosition (0.5)
+      // would otherwise land on - which can sit inside a third node
+      // occupying part of the gap. Only the bend moves here (via
+      // `forcedStep`, below) - the handle offsets on either end stay in the
+      // normal lane-group flow, so several Z-shaped edges sharing the same
+      // hub side (e.g. Storages' right side carrying both this and the
+      // straight-line-blocked "change feed" edge to Replication) still
+      // spread across it instead of all pinning to dead center and
+      // overlapping each other.
+      const bend = crossAxisDetourBend(sourceBox, targetBox, obstacles, 'x')
+      if (bend !== undefined) {
+        const forward = sourceSide === 'right'
+        const sourceHandleX = forward ? sourceBox.x + sourceBox.width : sourceBox.x
+        const targetHandleX = forward ? targetBox.x : targetBox.x + targetBox.width
+        const span = targetHandleX - sourceHandleX
+        const fraction = span !== 0 ? (bend - sourceHandleX) / span : 0.5
+        forcedStep = Math.min(0.92, Math.max(0.08, fraction))
+      }
+    } else if (bothVertical) {
+      // Mirror of the bothHorizontal Z-shape above, for a y-dominant pair.
+      const bend = crossAxisDetourBend(sourceBox, targetBox, obstacles, 'y')
+      if (bend !== undefined) {
+        const forward = sourceSide === 'bottom'
+        const sourceHandleY = forward ? sourceBox.y + sourceBox.height : sourceBox.y
+        const targetHandleY = forward ? targetBox.y : targetBox.y + targetBox.height
+        const span = targetHandleY - sourceHandleY
+        const fraction = span !== 0 ? (bend - sourceHandleY) / span : 0.5
+        forcedStep = Math.min(0.92, Math.max(0.08, fraction))
+      }
     }
-    return { edge: e, sourceSide, targetSide, level, sourceLevelOffset, targetLevelOffset }
+    return { edge: e, sourceSide, targetSide, level, sourceLevelOffset, targetLevelOffset, levelAxis, levelShared, forced, forcedStep }
   })
 
   // A level edge's offset is derived purely from its own source/target box
@@ -257,39 +439,79 @@ export function assignLanes<T extends RoutableEdge>(
   // share a node+side (e.g. one hub straight-through to two different
   // targets that happen to sit in the same column, one above the other)
   // compute the exact same point and run on top of each other for their
-  // entire shared span instead of merely crossing near it. Spread every
-  // such colliding group evenly around their shared point so they read as
-  // parallel lines from the moment they leave the shared node.
+  // entire shared span instead of merely crossing near it. Spread every such
+  // colliding group evenly around their shared point so they read as
+  // parallel lines from the moment they leave the shared node - but do it as
+  // ONE shift of the shared absolute coordinate per edge, applied to *both*
+  // ends via union-find over the source-side and target-side collision keys.
+  // Shifting each end from an independently-computed group would move one
+  // end of an edge without moving the other whenever it only collides at one
+  // end (e.g. Storages' straight-down edges to TransactionMerger and to
+  // Storage Engine collide with each other only at the Storages end) -
+  // turning an otherwise-straight line diagonal instead of just shifting it
+  // sideways.
   const LEVEL_SPREAD = 14
-  function spreadCollidingLevelOffsets(getKey: (s: (typeof sides)[number]) => string, getOffset: (s: (typeof sides)[number]) => number, setOffset: (s: (typeof sides)[number], value: number) => void) {
-    const groups = new Map<string, (typeof sides)[number][]>()
-    sides.forEach((s) => {
-      if (!s.level) return
-      const key = getKey(s)
-      groups.set(key, [...(groups.get(key) ?? []), s])
-    })
-    groups.forEach((list) => {
-      if (list.length < 2) return
-      list.sort((a, b) => a.edge.id.localeCompare(b.edge.id))
-      const base = getOffset(list[0])
-      const start = base - (LEVEL_SPREAD * (list.length - 1)) / 2
-      list.forEach((s, i) => setOffset(s, Math.min(96, Math.max(4, start + i * LEVEL_SPREAD))))
-    })
+  const levelIndices = sides.map((_, i) => i).filter((i) => sides[i].level)
+  const parent = new Map<number, number>(levelIndices.map((i) => [i, i]))
+  function find(i: number): number {
+    let root = i
+    while (parent.get(root) !== root) root = parent.get(root)!
+    let cur = i
+    while (parent.get(cur) !== root) {
+      const next = parent.get(cur)!
+      parent.set(cur, root)
+      cur = next
+    }
+    return root
   }
-  spreadCollidingLevelOffsets(
-    (s) => `${s.edge.source}:${s.sourceSide}`,
-    (s) => s.sourceLevelOffset,
-    (s, value) => {
-      s.sourceLevelOffset = value
-    },
-  )
-  spreadCollidingLevelOffsets(
-    (s) => `${s.edge.target}:${s.targetSide}`,
-    (s) => s.targetLevelOffset,
-    (s, value) => {
-      s.targetLevelOffset = value
-    },
-  )
+  function union(a: number, b: number) {
+    const ra = find(a)
+    const rb = find(b)
+    if (ra !== rb) parent.set(ra, rb)
+  }
+  // Sharing a `{node}:{side}` key alone isn't enough to union two edges - a
+  // hub can have several level edges leaving the same side toward targets in
+  // completely different bands (e.g. Storages' bottom side carries both the
+  // dead-straight run down to TransactionMerger *and* a mostly-diagonal-
+  // anyway run over to Clustering, whose "shared" x sits far to the right).
+  // Only union edges whose shared coordinate is already close enough that
+  // they'd actually run on top of each other without a nudge.
+  const LEVEL_COLLIDE_THRESHOLD = 60
+  const entriesByKey = new Map<string, number[]>()
+  levelIndices.forEach((i) => {
+    const s = sides[i]
+    ;[`${s.edge.source}:${s.sourceSide}`, `${s.edge.target}:${s.targetSide}`].forEach((key) => {
+      const existing = entriesByKey.get(key) ?? []
+      const collider = existing.find((j) => Math.abs(sides[j].levelShared - s.levelShared) < LEVEL_COLLIDE_THRESHOLD)
+      if (collider !== undefined) union(collider, i)
+      existing.push(i)
+      entriesByKey.set(key, existing)
+    })
+  })
+  const groups = new Map<number, number[]>()
+  levelIndices.forEach((i) => {
+    const root = find(i)
+    groups.set(root, [...(groups.get(root) ?? []), i])
+  })
+  groups.forEach((indices) => {
+    if (indices.length < 2) return
+    indices.sort((a, b) => sides[a].edge.id.localeCompare(sides[b].edge.id))
+    const base = sides[indices[0]].levelShared
+    const start = base - (LEVEL_SPREAD * (indices.length - 1)) / 2
+    indices.forEach((i, order) => {
+      const s = sides[i]
+      const shared = start + order * LEVEL_SPREAD
+      const sourceBox = macroBoxes.get(s.edge.source) ?? boxOf(s.edge.source)
+      const targetBox = macroBoxes.get(s.edge.target) ?? boxOf(s.edge.target)
+      if (s.levelAxis === 'x') {
+        s.sourceLevelOffset = Math.min(96, Math.max(4, ((shared - sourceBox.x) / sourceBox.width) * 100))
+        s.targetLevelOffset = Math.min(96, Math.max(4, ((shared - targetBox.x) / targetBox.width) * 100))
+      } else {
+        s.sourceLevelOffset = Math.min(96, Math.max(4, ((shared - sourceBox.y) / sourceBox.height) * 100))
+        s.targetLevelOffset = Math.min(96, Math.max(4, ((shared - targetBox.y) / targetBox.height) * 100))
+      }
+    })
+  })
 
   // Each lane entry remembers where the *other* end of its edge actually
   // sits, so the group can be ordered by that instead of by edge id.
@@ -313,7 +535,16 @@ export function assignLanes<T extends RoutableEdge>(
     list.push({ edgeId, otherPos })
     laneGroups.set(key, list)
   }
-  sides.forEach(({ edge, sourceSide, targetSide, level, sourceLevelOffset, targetLevelOffset }) => {
+  sides.forEach(({ edge, sourceSide, targetSide, level, sourceLevelOffset, targetLevelOffset, forced }) => {
+    // A forced (detoured) edge, like a level pair, owns a fixed point on each
+    // side rather than sharing the proportional lane split below.
+    if (forced) {
+      const sourceKey = `${edge.source}:${sourceSide}`
+      const targetKey = `${edge.target}:${targetSide}`
+      centerClaimed.set(sourceKey, [...(centerClaimed.get(sourceKey) ?? []), forced.sourceOffset])
+      centerClaimed.set(targetKey, [...(centerClaimed.get(targetKey) ?? []), forced.targetOffset])
+      return
+    }
     // A level pair goes straight through its own shared point instead of
     // sharing the proportional lane split below - so it isn't thrown off by
     // however many other, unrelated edges happen to share that side, and
@@ -412,7 +643,7 @@ export function assignLanes<T extends RoutableEdge>(
     return hubIsSource ? distanceFromHub : 1 - distanceFromHub
   }
 
-  const edgeAnchors = new Map<string, { sourceHandle: string; targetHandle: string; pathOptions?: { stepPosition: number } }>()
+  const edgeAnchors = new Map<string, { sourceHandle: string; targetHandle: string; pathOptions: { offset: number; stepPosition?: number } }>()
   const nodeHandles = new Map<string, NodeHandleSpec[]>()
   function ensureHandle(nodeId: string, side: HandleSide, offset: number) {
     const id = handleId(side, offset)
@@ -421,16 +652,19 @@ export function assignLanes<T extends RoutableEdge>(
     nodeHandles.set(nodeId, list)
   }
 
-  sides.forEach(({ edge, sourceSide, targetSide, level, sourceLevelOffset, targetLevelOffset }) => {
-    const sourceOffset = laneOffset(edge.source, sourceSide, edge.id, level, sourceLevelOffset)
-    const targetOffset = laneOffset(edge.target, targetSide, edge.id, level, targetLevelOffset)
+  sides.forEach(({ edge, sourceSide, targetSide, level, sourceLevelOffset, targetLevelOffset, forced, forcedStep }) => {
+    const sourceOffset = forced ? forced.sourceOffset : laneOffset(edge.source, sourceSide, edge.id, level, sourceLevelOffset)
+    const targetOffset = forced ? forced.targetOffset : laneOffset(edge.target, targetSide, edge.id, level, targetLevelOffset)
     ensureHandle(edge.source, sourceSide, sourceOffset)
     ensureHandle(edge.target, targetSide, targetOffset)
-    const stepPosition = stepPositionFor(edge, sourceSide, targetSide, level)
+    const stepPosition = forced ? forced.stepPosition : (forcedStep ?? stepPositionFor(edge, sourceSide, targetSide, level))
     edgeAnchors.set(edge.id, {
       sourceHandle: handleId(sourceSide, sourceOffset),
       targetHandle: handleId(targetSide, targetOffset),
-      ...(stepPosition === undefined ? {} : { pathOptions: { stepPosition } }),
+      // getSmoothStepPath's own default `offset` (20) leaves a visible gap
+      // between the line and the node it's supposedly attached to - zero it
+      // out so every edge actually touches the tile it connects to.
+      pathOptions: { offset: 0, ...(stepPosition === undefined ? {} : { stepPosition }) },
     })
   })
 
