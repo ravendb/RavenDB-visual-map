@@ -17,9 +17,11 @@ import { loadFreeformPositions, saveFreeformPositions, clearFreeformPositions, t
 import type { Theme } from '../lib/theme'
 import { assignLanes, type Box } from '../lib/edgeRouting'
 import MapNode, { type MapNodeData } from './MapNode'
+import MapEdge from './MapEdge'
 import NodeDetailPanel from './NodeDetailPanel'
 
 const nodeTypes = { mapNode: MapNode }
+const edgeTypes = { mapEdge: MapEdge }
 
 const THEME_COLORS: Record<Theme, { dot: string; edge: string; minimapNode: string; minimapMask: string }> = {
   dark: { dot: '#262c47', edge: '#4a5178', minimapNode: '#4a5178', minimapMask: 'rgba(15, 20, 37, 0.7)' },
@@ -36,7 +38,8 @@ const CHILD_CARD_WIDTH = 250
 const CHILD_CARD_HEIGHT = 48
 const CHILD_GAP = 10
 const EXPANDED_PADDING = 14
-const EXPANDED_HEADER_HEIGHT = 96
+// Kept in sync with GraphView's own correction - see the comment there.
+const EXPANDED_HEADER_HEIGHT = 72
 
 const MACRO_NODES = allNodes.filter((n) => !n.parentId)
 const MACRO_IDS = new Set(MACRO_NODES.map((n) => n.id))
@@ -154,7 +157,7 @@ function FreeformMapInner({ theme, onExit }: FreeformMapProps) {
         source: e.source,
         target: e.target,
         ...edgeAnchors.get(e.id),
-        type: 'smoothstep',
+        type: 'mapEdge',
         label: e.label,
         style: { stroke: colors.edge, strokeWidth: 1.5 },
         markerEnd: { type: MarkerType.ArrowClosed, color: colors.edge, width: 14, height: 14 },
@@ -219,6 +222,7 @@ function FreeformMapInner({ theme, onExit }: FreeformMapProps) {
           nodes={nodes}
           edges={edges}
           nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
           onNodesChange={onNodesChange}
           onNodeDragStop={handleNodeDragStop}
           onNodeClick={(event, node) => {
