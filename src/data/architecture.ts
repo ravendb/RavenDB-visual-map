@@ -395,7 +395,7 @@ export const nodes: MapNode[] = [
     label: 'TransactionMerger',
     category: 'server',
     summary:
-      'Batches many write operations into a single Voron write transaction. This optimization greatly increases the throughput while taking into consideration Voron\'s single-writer model. The communication between storages and the TransactionMerger is done in a lock-free manner. TransactionMergers runs on one dedicated long-running thread.',
+      'Batches many write operations into a single Voron write transaction. This optimization greatly increases the throughput while taking into consideration Voron\'s single-writer model. The communication between storages and the TransactionMerger is done in a lock-free manner. TransactionMerger runs on one dedicated long-running thread.',
     references: {
       docs: [
         { name: 'Configuration: Transaction Merger Options', url: 'https://docs.ravendb.net/7.2/server/configuration/transaction-merger-configuration/' },
