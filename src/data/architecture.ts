@@ -151,9 +151,9 @@ export const nodes: MapNode[] = [
     id: 'sharding',
     label: 'Sharding',
     category: 'server',
-    summary: 'Splits one database across several shards and fans requests out to them, presenting a single database to the client.',
+    summary: 'Splits one database across several shards. It is responsible for routing requests between them when needed. Presents a sharded database as a unified single database to the client.',
     description:
-      'A sharded database is orchestrated by ShardedDatabaseContext: ShardLocator decides which shard a document id (bucket) belongs to, the Executors fan a request out to the relevant shards, and Queries merges the per-shard results back into one answer. Clients talk to a sharded database the same way they talk to a non-sharded one.',
+      'A sharded database is orchestrated by ShardedDatabaseContext: ShardLocator decides which shard a document id (bucket) belongs to. The Executors fan a request out to the relevant shards, and Queries merges the per-shard results back into one answer. Clients talk to a sharded database the same way they talk to a non-sharded one.',
     references: {
       docs: [
         { name: 'Sharding', url: 'https://docs.ravendb.net/7.2/sharding/overview' },
@@ -169,7 +169,7 @@ export const nodes: MapNode[] = [
     category: 'storage',
     summary: 'The per-database storage subsystems: documents, attachments, revisions, counters, time series, conflicts, refresh and archival.',
     description:
-      'Every one of these lives directly on top of a Voron storage environment and is what most database operations ultimately touch - each gets its own micro node here rather than being folded into one generic "storage" box, since they are separate classes with separate on-disk tables and separate size/retention rules. DocumentsStorage is the hub: every write is stamped with a new change vector there, independent of whether replication is even configured - it is the general-purpose causality/versioning primitive the rest of the server builds on, which is why Revisions, Subscriptions, ETL and incremental Backup each key off it.',
+      'Every one of these lives directly on top of a Voron storage environment with separate classes, separate on-disk tables, and separate size/retention rules. DocumentsStorage is the hub which the operations go through. Every write is stamped with a new change vector / ETag there. Change vectors provide the general-purpose causality/versioning primitive the rest of the server builds on, which is why Revisions, Subscriptions, ETL and incremental Backup each key off it.',
     references: {
       docs: [
         { name: 'Documents and Collections', url: 'https://docs.ravendb.net/7.2/studio/database/documents/documents-and-collections' },
@@ -459,7 +459,7 @@ export const nodes: MapNode[] = [
     category: 'storage',
     summary: 'The document read/write core: get, put, delete by id, and the change-vector bookkeeping every write goes through.',
     description:
-      'DocumentsStorage handles document CRUD directly against Voron and stamps a new change vector on every write, regardless of whether replication is even configured - Revisions keys each stored revision by it, Subscriptions and ETL use it as their resume checkpoint, and Backup compares it to the last run\'s to detect incremental changes.',
+      'DocumentsStorage handles document CRUD directly against Voron and stamps a new change vector / ETag on every write. Revisions keys each stored revision by it, Subscriptions and ETL use it as their resume checkpoint, and Backup compares it to the last run\'s to detect incremental changes.',
     references: {
       docs: [
         { name: 'Documents and Collections', url: 'https://docs.ravendb.net/7.2/studio/database/documents/documents-and-collections' },
@@ -478,9 +478,9 @@ export const nodes: MapNode[] = [
     id: 'core-attachments',
     label: 'Attachments',
     category: 'storage',
-    summary: 'Binary blobs attached to documents, stored as streams alongside the owning document, plus cross-node "remote attachment" fetch.',
+    summary: 'Binary blobs attached to documents, stored as streams. They include the offloading/loading mechanism for the "remote attachment".',
     description:
-      'AttachmentsStorage keeps attachments in their own Voron table, separately from document JSON, so large binaries do not bloat document reads - every record is keyed by a 44-byte content hash (AttachmentHashSize), so identical content stored on several documents is kept once. RemoteAttachmentsStorage/RemoteAttachmentsSender and RemoteAttachmentHandler implement cold-storage tiering on top of that: an attachment\'s stream can be moved out to external storage (e.g. S3/Azure, typically as part of a backup) and deleted locally, then fetched back on demand by its external identifier instead of staying resident forever - this derives from the same AbstractBackgroundWorkStorage used for document expiration. The in-memory model for a record and its deletion marker (Attachment / tombstone) is a flat set of fields (StorageId, Key, Etag, ChangeVector, content hash, size, stream) - RevisionVersion is only populated on the copy kept for a revision, not on the live document\'s.',
+      'AttachmentsStorage keeps attachments in their own Voron table, separately from document JSON, so large binaries do not affect document reads. Eevery record is addressed by a 44-byte content hash (AttachmentHashSize), so identical content stored on several documents is kept once. RemoteAttachmentsStorage/RemoteAttachmentsSender and RemoteAttachmentHandler implement cold-storage tiering on top of that: an attachment\'s stream can be moved out to external storage (e.g. S3/Azure, typically as part of a backup) and deleted locally, then fetched back on demand by its external identifier instead of staying resident forever. For that purpose, the foundation of AbstractBackgroundWorkStorage is used. The in-memory model for a record and its deletion marker (Attachment / tombstone) is a flat tuple of fields (StorageId, Key, Etag, ChangeVector, content hash, size, stream). RevisionVersion is only populated on the copy kept for a revision, not on the live document\'s.',
     references: {
       docs: [
         { name: 'Attachments Overview', url: 'https://docs.ravendb.net/7.2/document-extensions/attachments/overview' },
@@ -505,7 +505,7 @@ export const nodes: MapNode[] = [
     label: 'Revisions',
     category: 'storage',
     summary:
-      'Versioning: keeps previous versions of a document according to the revisions configuration. RevisionsStorage keeps a plain and a compressed Voron table side by side, and rejects any single revision larger than SizeLimitInBytes (32MB by default, 2MB on 32-bit builds, not currently configurable). Each stored revision is keyed by the change vector the document had at that point, not by a timestamp or sequence number.',
+      'Revisions keep previous versions of a document according to the defined configuration. RevisionsStorage keeps a plain and a compressed Voron table side by side, and rejects any single revision larger than SizeLimitInBytes (32MB by default, 2MB on 32-bit builds, not currently configurable). Each stored revision is keyed by the change vector the document had when it was written.',
     references: {
       docs: [
         { name: 'Revisions', url: 'https://docs.ravendb.net/7.2/document-extensions/revisions/overview' },
@@ -740,7 +740,7 @@ export const nodes: MapNode[] = [
     label: 'ShardLocator',
     category: 'server',
     summary:
-      'Maps a document id to its bucket and the bucket to the shard that owns it. ShardLocator is a static class with overloads for a single id, a batch of ids, or Slices - all of them ultimately resolve the bucket through the database context.',
+      'Maps a document id to its bucket and the bucket to the shard that owns it. ShardLocator is a component capable of locating one or many identifiers in one call. The bucket is resolved through the database context.',
     references: {
       docs: [
         { name: 'Sharding: Resharding', url: 'https://docs.ravendb.net/7.2/sharding/resharding' },
@@ -782,7 +782,7 @@ export const nodes: MapNode[] = [
     label: 'Queries',
     category: 'server',
     summary:
-      'Query orchestration across shards: sending sub-queries out and merging/sorting the results. ShardedQueryProcessor fans the query out as parallel per-shard commands through ShardExecutor, then merges the results - falling back to a not-modified response when nothing changed.',
+      'Query orchestration across shards: sending sub-queries out and merging/sorting the results. ShardedQueryProcessor fans the query out as parallel per-shard commands through ShardExecutor, then merges the results. The usual HTTP caching pattern is applied here as well, sending a not-modified response when nothing changed.',
     references: {
       docs: [
         { name: 'Sharding: Querying', url: 'https://docs.ravendb.net/7.2/sharding/querying/' },
