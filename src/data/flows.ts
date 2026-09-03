@@ -88,13 +88,13 @@ export const FLOWS: Flow[] = [
     steps: [
       {
         nodeId: 'documents-core',
-        note: "A document write bumps its etag; EmbeddingsGenerationTask - a literal ETL type (EtlType.EmbeddingsGeneration) - tails that etag the same way any other ETL process or index does, not a synchronous hook off SaveChanges.",
+        note: "A document write bumps its change vector. EmbeddingsGenerationTask notices this change the same asynchronous way any other ETL process or index does.",
       },
       {
         nodeId: 'ai',
-        note: 'TextChunker splits the text into chunks; each chunk is checked against the Embeddings Cache by content hash first, and only the chunks that miss the cache are sent to the built-in model or the configured provider for a vector.',
+        note: 'TextChunker splits the text into chunks. To save LLM tokens, each chunk is checked against the Embeddings Cache by content hash first. Only the chunks that miss the cache are sent to the embedding-generating model to obtain its vector representation.',
       },
-      { nodeId: 'indexing', note: 'The vectors - freshly generated or reused from cache - are indexed as fields, written through the index like any other field.' },
+      { nodeId: 'indexing', note: 'The vectors are indexed using the HNSW algorithm.' },
       { nodeId: 'search-engines', note: "Corax answers a similarity query by calling into an HNSW graph - Voron's own data structure, not Corax's." },
       { nodeId: 'storage', note: 'The HNSW graph and the vector data it points to are persisted through Voron.' },
     ],

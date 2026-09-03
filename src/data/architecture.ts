@@ -151,9 +151,9 @@ export const nodes: MapNode[] = [
     id: 'sharding',
     label: 'Sharding',
     category: 'server',
-    summary: 'Splits one database across several shards and fans requests out to them, presenting a single database to the client.',
+    summary: 'Splits one database across several shards. It is responsible for routing requests between them when needed. Presents a sharded database as a unified single database to the client.',
     description:
-      'A sharded database is orchestrated by ShardedDatabaseContext: ShardLocator decides which shard a document id (bucket) belongs to, the Executors fan a request out to the relevant shards, and Queries merges the per-shard results back into one answer. Clients talk to a sharded database the same way they talk to a non-sharded one.',
+      'A sharded database is orchestrated by ShardedDatabaseContext: ShardLocator decides which shard a document id (bucket) belongs to. The Executors fan a request out to the relevant shards, and Queries merges the per-shard results back into one answer. Clients talk to a sharded database the same way they talk to a non-sharded one.',
     references: {
       docs: [
         { name: 'Sharding', url: 'https://docs.ravendb.net/7.2/sharding/overview' },
@@ -169,7 +169,7 @@ export const nodes: MapNode[] = [
     category: 'storage',
     summary: 'The per-database storage subsystems: documents, attachments, revisions, counters, time series, conflicts, refresh and archival.',
     description:
-      'Every one of these lives directly on top of a Voron storage environment and is what most database operations ultimately touch - each gets its own micro node here rather than being folded into one generic "storage" box, since they are separate classes with separate on-disk tables and separate size/retention rules. DocumentsStorage is the hub: every write is stamped with a new change vector there, independent of whether replication is even configured - it is the general-purpose causality/versioning primitive the rest of the server builds on, which is why Revisions, Subscriptions, ETL and incremental Backup each key off it.',
+      'Every one of these lives directly on top of a Voron storage environment with separate classes, separate on-disk tables, and separate size/retention rules. DocumentsStorage is the hub which the operations go through. Every write is stamped with a new change vector / ETag there. Change vectors provide the general-purpose causality/versioning primitive the rest of the server builds on, which is why Revisions, Subscriptions, ETL and incremental Backup each key off it.',
     references: {
       docs: [
         { name: 'Documents and Collections', url: 'https://docs.ravendb.net/7.2/studio/database/documents/documents-and-collections' },
@@ -205,9 +205,9 @@ export const nodes: MapNode[] = [
     id: 'search-engines',
     label: 'Search Engines',
     category: 'indexing',
-    summary: 'The two interchangeable text search engines an index can be built on - the in-house Corax and the older Lucene path - plus Corax\'s vector search.',
+    summary: 'The two interchangeable search engines an index can be built on: Corax and Lucene. In addition to providing regular search capabilities, Corax provides the vector search as well.',
     description:
-      'Corax is RavenDB\'s in-house search engine: it analyzes field values, builds an inverted index persisted through Voron, and executes queries against it. Lucene remains fully supported, running on Voron through the LuceneVoronDirectory in src/Raven.Server/Indexing. Which one a new index uses is configurable server-wide, per database and per static index; when nothing is configured the default depends on the license - Community, Developer and unlicensed servers default to Corax, Professional and Enterprise default to Lucene. A vector field is a separate concern from either text engine: Corax answers a similarity query by calling into an HNSW graph that Voron itself stores and searches.',
+      'Corax is RavenDB\'s in-house search engine: it analyzes field values, builds an inverted index persisted through Voron, and executes queries against it. Lucene remains fully supported, running on Voron through the LuceneVoronDirectory in src/Raven.Server/Indexing. Which one a new index uses is configurable server-wide, per database and per static index. A vector field is a construct separate from either regular search engine capabilities. It\'s Corax that answers a similarity query by calling into an HNSW graph that Voron itself stores and searches.',
     references: {
       docs: [
         { name: 'Search Engines (Corax / Lucene)', url: 'https://docs.ravendb.net/7.2/indexes/search-engine/corax' },
@@ -222,7 +222,7 @@ export const nodes: MapNode[] = [
     id: 'ai',
     label: 'AI / Embeddings',
     category: 'indexing',
-    summary: 'Turning text into embeddings - via a bundled local model or a remote provider - plus the chat/assistant integrations with external AI providers.',
+    summary: 'Turning text into embeddings AND the chat/assistant integrations with external AI providers.',
     description:
       "EmbeddingsGenerationTask is a literal ETL type (EtlType.EmbeddingsGeneration, alongside Raven/SQL/OLAP ETL) that tails the document change feed by etag - the same mechanism every index and other ETL uses - rather than firing synchronously off SaveChanges. It hands each batch to AiWorker, which chunks the text with TextChunker and checks every chunk against the Embeddings Cache by content hash first; only chunks that miss the cache actually get embedded, either through RavenDB's own bundled ONNX model (no external call) or one of the configured remote providers. ChatCompletionClient is the client for the user's own configured AI provider; AiAssistant is a separate, license-gated proxy to RavenDB's own cloud-hosted assistant at api.ravendb.net and does not use ChatCompletionClient or the user's provider config. What this produces is just a vector field on a document - Search Engines is what actually makes that field searchable by similarity.",
     references: {
@@ -239,7 +239,7 @@ export const nodes: MapNode[] = [
     category: 'storage',
     summary: 'The transactional, memory-mapped, page-based storage engine every other subsystem persists through.',
     description:
-      'Voron is RavenDB\'s in-house embedded storage engine: fixed-size pages, a write-ahead journal that is the recovery source after a crash, B+Trees (variable-size keys) and fixed-size B+Trees, raw data sections and tables. It is fully ACID, allows a single write transaction at a time (many concurrent readers), and provides snapshot isolation via scratch files and page translation tables.',
+      'Voron is RavenDB\'s in-house embedded storage engine. It works with fixed-size pages and provides a write-ahead journal that is the recovery source after a crash. It uses B+Trees (various flavors), raw data sections and tables. It is fully ACID, allows a single write transaction at a time (many concurrent readers), and provides snapshot isolation via scratch files and page translation tables.',
     references: {
       docs: [
         { name: 'Storage Engine (Voron)', url: 'https://docs.ravendb.net/7.2/server/storage/storage-engine' },
@@ -307,7 +307,7 @@ export const nodes: MapNode[] = [
     id: 'etl',
     label: 'ETL',
     category: 'integration',
-    summary: 'Outgoing data movement: transforms document changes and streams them out to external systems as they happen.',
+    summary: 'Outgoing data movement: transforms changed documents and streams them out to external systems.',
     description:
       'EtlLoader runs the outgoing ETL processes configured on a database; Providers covers one implementation per destination - RavenDB, SQL, OLAP, Elasticsearch, AI embeddings generation, and queue destinations such as Kafka and RabbitMQ.',
     references: {
@@ -395,7 +395,7 @@ export const nodes: MapNode[] = [
     label: 'TransactionMerger',
     category: 'server',
     summary:
-      'Batches many write operations into a single Voron write transaction - the throughput trick on top of Voron\'s single-writer model. Commands sit on a lock-free queue and run on one dedicated long-running thread, so callers merge into that shared transaction without ever blocking each other on it directly.',
+      'Batches many write operations into a single Voron write transaction. This optimization greatly increases the throughput while taking into consideration Voron\'s single-writer model. The communication between storages and the TransactionMerger is done in a lock-free manner. TransactionMerger runs on one dedicated long-running thread.',
     references: {
       docs: [
         { name: 'Configuration: Transaction Merger Options', url: 'https://docs.ravendb.net/7.2/server/configuration/transaction-merger-configuration/' },
@@ -435,7 +435,7 @@ export const nodes: MapNode[] = [
     label: 'Data Subscriptions',
     category: 'server',
     summary:
-      'Server-side, resumable push of matching documents to a worker over a long-lived TCP connection. MaxNumberOfConcurrentConnections is a single database-wide cap (default 1000) shared across every subscription, not a per-subscription limit; SubscriptionStorage raises events as connections open, end, or a batch completes. "Resumable" is change-vector-backed: each acknowledged batch records the change vector it ended on, which is what a worker reconnects from instead of replaying everything.',
+      'Server-side tracked, resumable push of matching documents to a worker over a long-lived TCP connection. MaxNumberOfConcurrentConnections is a single database-wide cap (default 1000) shared across every subscription, not a per-subscription limit; SubscriptionStorage raises events as connections open, end, or a batch completes. "Resumable" is change-vector-backed: each acknowledged batch records the change vector it ended on, which is what a worker reconnects from instead of replaying everything.',
     references: {
       docs: [
         { name: 'Data Subscriptions', url: 'https://docs.ravendb.net/7.2/client-api/data-subscriptions/what-are-data-subscriptions' },
@@ -459,7 +459,7 @@ export const nodes: MapNode[] = [
     category: 'storage',
     summary: 'The document read/write core: get, put, delete by id, and the change-vector bookkeeping every write goes through.',
     description:
-      'DocumentsStorage handles document CRUD directly against Voron and stamps a new change vector on every write, regardless of whether replication is even configured - Revisions keys each stored revision by it, Subscriptions and ETL use it as their resume checkpoint, and Backup compares it to the last run\'s to detect incremental changes.',
+      'DocumentsStorage handles document CRUD directly against Voron and stamps a new change vector / ETag on every write. Revisions keys each stored revision by it, Subscriptions and ETL use it as their resume checkpoint, and Backup compares it to the last run\'s to detect incremental changes.',
     references: {
       docs: [
         { name: 'Documents and Collections', url: 'https://docs.ravendb.net/7.2/studio/database/documents/documents-and-collections' },
@@ -478,9 +478,9 @@ export const nodes: MapNode[] = [
     id: 'core-attachments',
     label: 'Attachments',
     category: 'storage',
-    summary: 'Binary blobs attached to documents, stored as streams alongside the owning document, plus cross-node "remote attachment" fetch.',
+    summary: 'Binary blobs attached to documents, stored as streams. They include the offloading/loading mechanism for the "remote attachment".',
     description:
-      'AttachmentsStorage keeps attachments in their own Voron table, separately from document JSON, so large binaries do not bloat document reads - every record is keyed by a 44-byte content hash (AttachmentHashSize), so identical content stored on several documents is kept once. RemoteAttachmentsStorage/RemoteAttachmentsSender and RemoteAttachmentHandler implement cold-storage tiering on top of that: an attachment\'s stream can be moved out to external storage (e.g. S3/Azure, typically as part of a backup) and deleted locally, then fetched back on demand by its external identifier instead of staying resident forever - this derives from the same AbstractBackgroundWorkStorage used for document expiration. The in-memory model for a record and its deletion marker (Attachment / tombstone) is a flat set of fields (StorageId, Key, Etag, ChangeVector, content hash, size, stream) - RevisionVersion is only populated on the copy kept for a revision, not on the live document\'s.',
+      'AttachmentsStorage keeps attachments in their own Voron table, separately from document JSON, so large binaries do not affect document reads. Every record is addressed by a 44-byte content hash (AttachmentHashSize), so identical content stored on several documents is kept once. RemoteAttachmentsStorage/RemoteAttachmentsSender and RemoteAttachmentHandler implement cold-storage tiering on top of that: an attachment\'s stream can be moved out to external storage (e.g. S3/Azure, typically as part of a backup) and deleted locally, then fetched back on demand by its external identifier instead of staying resident forever. For that purpose, the foundation of AbstractBackgroundWorkStorage is used. The in-memory model for a record and its deletion marker (Attachment / tombstone) is a flat tuple of fields (StorageId, Key, Etag, ChangeVector, content hash, size, stream). RevisionVersion is only populated on the copy kept for a revision, not on the live document\'s.',
     references: {
       docs: [
         { name: 'Attachments Overview', url: 'https://docs.ravendb.net/7.2/document-extensions/attachments/overview' },
@@ -505,7 +505,7 @@ export const nodes: MapNode[] = [
     label: 'Revisions',
     category: 'storage',
     summary:
-      'Versioning: keeps previous versions of a document according to the revisions configuration. RevisionsStorage keeps a plain and a compressed Voron table side by side, and rejects any single revision larger than SizeLimitInBytes (32MB by default, 2MB on 32-bit builds, not currently configurable). Each stored revision is keyed by the change vector the document had at that point, not by a timestamp or sequence number.',
+      'Revisions keep previous versions of a document according to the defined configuration. RevisionsStorage keeps a plain and a compressed Voron table side by side, and rejects any single revision larger than SizeLimitInBytes (32MB by default, 2MB on 32-bit builds, not currently configurable). Each stored revision is keyed by the change vector the document had when it was written.',
     references: {
       docs: [
         { name: 'Revisions', url: 'https://docs.ravendb.net/7.2/document-extensions/revisions/overview' },
@@ -545,7 +545,7 @@ export const nodes: MapNode[] = [
     label: 'Time Series',
     category: 'storage',
     summary:
-      'Append-only numeric series attached to a document, stored in compressed segments. Each segment is capped at 2048 bytes (MaxSegmentSize) before a new one starts; TimeSeriesRollups only marks a rollup as needing recomputation, while the separate TimeSeriesPolicyRunner background worker is what actually downsamples and purges data per the configured retention policy.',
+      'Append-only numeric series attached to a document, stored in compressed segments. Each segment is capped at 2048 bytes (MaxSegmentSize) before a new one starts. TimeSeriesRollups only marks a rollup as needing recomputation, while the separate TimeSeriesPolicyRunner background worker is what actually downsamples and purges data per the configured retention policy.',
     references: {
       docs: [
         { name: 'Time Series', url: 'https://docs.ravendb.net/7.2/document-extensions/timeseries/overview' },
@@ -566,7 +566,7 @@ export const nodes: MapNode[] = [
     category: 'storage',
     summary: 'Persists the competing document versions RavenDB keeps on disk when two nodes changed the same document concurrently and no automatic resolution has run yet.',
     description:
-      'ConflictsStorage owns a dedicated Voron table (ConflictsSchema) holding every unresolved version of a conflicted document, tracked via the ConflictsCount field; AddConflict writes an incoming version alongside the existing one instead of overwriting it, and GetConflictsFor/GetAllConflictsBySameId read them back for Studio or resolution logic. It is distinct from ConflictManager (under Replication), which decides whether and how to resolve a conflict and then calls into ConflictsStorage to persist the outcome - this is the storage layer, ConflictManager is the policy layer built on top of it.',
+      'ConflictsStorage owns a dedicated Voron table (ConflictsSchema) holding every unresolved version of a conflicted document, tracked via the ConflictsCount field; AddConflict writes an incoming version alongside the existing one instead of overwriting it, and GetConflictsFor/GetAllConflictsBySameId read them back for Studio or resolution logic. It is distinct from ConflictManager (under Replication), which decides whether and how to resolve a conflict and then calls into ConflictsStorage to persist the outcome. This is the storage layer, while ConflictManager is the policy layer built on top of it.',
     references: {
       docs: [
         { name: 'Replication Conflicts', url: 'https://docs.ravendb.net/7.2/server/clustering/replication/replication-conflicts' },
@@ -585,9 +585,9 @@ export const nodes: MapNode[] = [
     id: 'core-refresh',
     label: 'Refresh',
     category: 'storage',
-    summary: 'Periodically re-writes a document once its @refresh metadata time has passed, bumping its change vector without changing its data.',
+    summary: 'Re-writes a document once its @refresh metadata time has passed, bumping its change vector and removing the refresh date, without changing its data.',
     description:
-      'RefreshStorage derives from the same DocumentBackgroundWorkStorage base as Expiration and Archival, and drives documents through the DocumentsByRefresh tree keyed on the @refresh metadata property. ProcessDocument checks whether that time has passed, strips the @refresh tag, then calls DocumentsStorage.Put with the same content - the point is a fresh change vector and etag, not a content change, so anything watching for updates (indexes, subscriptions, ETL) re-triggers on it. A still-conflicted document is only treated as refreshed once every conflicted copy has itself passed its refresh time.',
+      'RefreshStorage derives from the same DocumentBackgroundWorkStorage base as Expiration and Archival, and drives documents through the DocumentsByRefresh tree keyed on the @refresh metadata property. ProcessDocument checks whether that time has passed, strips the @refresh tag, then calls DocumentsStorage.Put with the same content. The point is a fresh change vector / etag, not a content change, so anything watching for updates (indexes, subscriptions, ETL) re-triggers on it.',
     references: {
       docs: [
         { name: 'Document Refresh', url: 'https://docs.ravendb.net/7.2/server/extensions/refresh' },
@@ -608,7 +608,7 @@ export const nodes: MapNode[] = [
     category: 'storage',
     summary: 'Marks documents past their scheduled @archive-at time as archived, so other subsystems, like indexing, can skip them.',
     description:
-      'DataArchivalStorage walks the DocumentsByArchiveAtDateTime tree keyed on the @archive-at metadata property; once a document\'s time has passed, it sets the Archived metadata flag, removes @archive-at, and ORs in DocumentFlags.Archived before writing the document back - unlike Refresh and Expiration it explicitly ignores conflicts. DataArchivist is the background loop: it wakes every ArchiveFrequencyInSec (default 60s), pulls a batch from DataArchivalStorage, and applies it transactionally through ArchiveDocumentsCommand.',
+      'DataArchivalStorage uses the DocumentsByArchiveAtDateTime tree that is ordered by the @archive-at metadata property. Once a document\'s time has passed, it sets the Archived metadata flag, removes @archive-at, and ORs in DocumentFlags.Archived before writing the document back. Unlike Refresh and Expiration it explicitly ignores conflicts. DataArchivist is the background loop: it wakes every ArchiveFrequencyInSec (default 60s), pulls a batch from DataArchivalStorage, and applies it transactionally through ArchiveDocumentsCommand.',
     references: {
       docs: [
         { name: 'Data Archival: Overview', url: 'https://docs.ravendb.net/7.2/data-archival/overview' },
@@ -687,10 +687,10 @@ export const nodes: MapNode[] = [
   },
   {
     id: 'storage-page',
-    label: 'Page / PageHeader',
+    label: 'Page',
     category: 'storage',
     summary:
-      'The fixed-size page is the fundamental unit Voron reads and writes. Page wraps nothing more than a raw pointer into a memory-mapped file, with helpers that view it as a Span<byte> and account for whether it\'s an overflow page bigger than the standard page size.',
+      'The fixed-size page is the fundamental unit Voron reads and writes. It starts with a small preamble called PageHeader. A page wraps a raw pointer into a memory-mapped file, with helpers that view it as a Span<byte> and account for whether it\'s an overflow page bigger than the standard page size.',
     references: {
       docs: [{ name: 'Storage Engine (Voron)', url: 'https://docs.ravendb.net/7.2/server/storage/storage-engine/' }],
       source: [{ name: 'src/Voron/Page.cs', url: githubBlobUrl('src/Voron/Page.cs') }],
@@ -703,7 +703,7 @@ export const nodes: MapNode[] = [
     label: 'Slice',
     category: 'storage',
     summary:
-      'The key/value byte-range abstraction used throughout Voron\'s trees. Slice is a thin wrapper around a ByteString and converts implicitly to a ReadOnlySpan<byte>, so most Voron code can compare and hash keys without ever allocating a managed byte array.',
+      'The byte-range abstraction used throughout Voron\'s trees. Slice is a thin wrapper around a ByteString and converts implicitly to a ReadOnlySpan<byte>, so most Voron code can compare and hash keys without ever allocating a managed byte array.',
     references: {
       source: [{ name: 'src/Voron/Slice.cs', url: githubBlobUrl('src/Voron/Slice.cs') }],
     },
@@ -740,7 +740,7 @@ export const nodes: MapNode[] = [
     label: 'ShardLocator',
     category: 'server',
     summary:
-      'Maps a document id to its bucket and the bucket to the shard that owns it. ShardLocator is a static class with overloads for a single id, a batch of ids, or Slices - all of them ultimately resolve the bucket through the database context.',
+      'Maps a document id to its bucket and the bucket to the shard that owns it. ShardLocator is a component capable of locating one or many identifiers in one call. The bucket is resolved through the database context.',
     references: {
       docs: [
         { name: 'Sharding: Resharding', url: 'https://docs.ravendb.net/7.2/sharding/resharding' },
@@ -782,7 +782,7 @@ export const nodes: MapNode[] = [
     label: 'Queries',
     category: 'server',
     summary:
-      'Query orchestration across shards: sending sub-queries out and merging/sorting the results. ShardedQueryProcessor fans the query out as parallel per-shard commands through ShardExecutor, then merges the results - falling back to a not-modified response when nothing changed.',
+      'Query orchestration across shards: sending sub-queries out and merging/sorting the results. ShardedQueryProcessor fans the query out as parallel per-shard commands through ShardExecutor, then merges the results. The usual HTTP caching pattern is applied here as well, sending a not-modified response when nothing changed.',
     references: {
       docs: [
         { name: 'Sharding: Querying', url: 'https://docs.ravendb.net/7.2/sharding/querying/' },
@@ -805,7 +805,7 @@ export const nodes: MapNode[] = [
     label: 'Index (base class)',
     category: 'indexing',
     summary:
-      'One running index: its own thread, batching, priority/state, and the indexing loop. It tracks its own error counters - write, unexpected, analyzer, disk-full - against fixed limits, and disables itself once one of those limits is crossed.',
+      'One running index: its own thread, batching, priority/state, and the indexing loop. It tracks its own state against fixed limits, and disables itself once one of those limits is crossed.',
     references: {
       docs: [
         { name: 'Index Administration', url: 'https://docs.ravendb.net/7.2/indexes/index-administration' },
@@ -826,7 +826,7 @@ export const nodes: MapNode[] = [
     label: 'Auto indexes',
     category: 'indexing',
     summary:
-      'Indexes RavenDB creates by itself for queries that match no existing index. AutoMapIndex is created either fresh (for a query with no matching index) or reopened from an existing Voron environment on startup, and both paths route through the same private constructor.',
+      'Indexes RavenDB creates by itself for queries that match no existing index. AutoMapIndex is created either fresh (for a query with no matching index) or reopened from an existing Voron environment on startup.',
     references: {
       docs: [
         { name: 'Query Overview (Dynamic Queries)', url: 'https://docs.ravendb.net/7.2/querying/overview' },
@@ -846,7 +846,7 @@ export const nodes: MapNode[] = [
     label: 'Static indexes',
     category: 'indexing',
     summary:
-      'User-defined index definitions, compiled from their map/reduce functions. IndexCompiler turns those functions into a generated .NET assembly at runtime, under a generated Static.Generated namespace; the in-memory assembly doesn\'t survive a restart, but the IndexCompilationCache still avoids recompiling the same definition twice within one running process.',
+      'User-defined index definitions, compiled from their Map and/or Reduce functions. IndexCompiler turns those functions into a generated .NET assembly at runtime, under a generated Static.Generated namespace; the in-memory assembly doesn\'t survive a restart, but the IndexCompilationCache still avoids recompiling the same definition twice within one running process.',
     references: {
       docs: [
         { name: 'Creating and Deploying Indexes', url: 'https://docs.ravendb.net/7.2/indexes/creating-and-deploying/' },
@@ -906,7 +906,7 @@ export const nodes: MapNode[] = [
     label: 'Persistence',
     category: 'indexing',
     summary:
-      'The seam between the indexing subsystem and a search engine - one implementation for Corax, one for Lucene. IndexPersistenceBase declares the abstract surface - opening writers and readers, cache publishing, cleanup - that both backends implement independently.',
+      'The seam between the indexing subsystem and a search engine. Each indexing engine (Corax, Lucene) has its own. IndexPersistenceBase is their shared abstraction that handles opening writers and readers, cache publishing, and cleanup.',
     references: {
       docs: [
         { name: 'Search Engine: Corax', url: 'https://docs.ravendb.net/7.2/indexes/search-engine/corax' },
@@ -930,9 +930,9 @@ export const nodes: MapNode[] = [
     label: 'Corax & Vector Search',
     category: 'indexing',
     summary:
-      'The in-house text engine, plus the HNSW-based vector similarity search it calls into for embeddings.',
+      'The in-house search engine, with the addition of the HNSW-based vector similarity search.',
     description:
-      '## Corax\n\nCorax is RavenDB\'s in-house full-text search engine - an inverted index built and queried entirely in-house, without depending on Lucene. Documents flow in through an Analyzer, which composes a tokenizer (ITokenizer) with transformers like lower-casing in a staged pipeline that can resume tokenization across steps; IndexWriter then builds the inverted index from those tokens - explicitly single-threaded and caller-synchronized rather than internally locked - while IndexFieldsMapping resolves each field by Slice, string or integer id. At query time, IndexSearcher walks that index, switching a term\'s postings to a bitmap representation once they cross a 32MB threshold, trading memory for faster set operations.\n\n## Vector Search\n\nThe HNSW graph used for vector similarity search lives in Voron\'s Data/Graphs/Hnsw. Hnsw.Create persists it as a genuine Voron structure - a tree for node lookups, a Container for the raw vector blobs, and the graph\'s own options written into that tree. A vector can be quantized before it\'s stored: VectorQuantizer reduces it to a per-vector-scaled int8 or a 1-bit/binary packing, trading precision for a smaller graph and the cheaper CosineSimilarityI8/HammingDistance kernels instead of full float32 cosine distance.\n\n## How they relate\n\nVector search is a separate structure that Corax calls into rather than something it implements itself: IndexSearcher just opens a Hnsw.SearchState against the current transaction and calls into it to read vectors back and run the nearest-neighbor search.',
+      '## Corax\n\nCorax is RavenDB\'s custom full-text search engine. It builds indexes and provides querying capabilities on top of them. Documents flow in through an Analyzer, which composes a tokenizer (ITokenizer) with transformers like lower-casing in a staged pipeline that can resume tokenization across steps; IndexWriter then builds the inverted index from those tokens. At query time, IndexSearcher walks that index, switching a term\'s postings to a bitmap representation once they cross a 32MB threshold, trading memory for faster set operations.\n\n## Vector Search\n\nThe HNSW graph used for vector similarity search lives in Voron\'s Data/Graphs/Hnsw. Hnsw.Create persists it as a native Voron structure - a tree for node lookups, a Container for the raw vector blobs, and the graph\'s own options written into that tree. A vector can be quantized before it\'s stored: VectorQuantizer reduces it to a per-vector-scaled int8 or a 1-bit/binary packing, trading precision for a smaller graph and the cheaper CosineSimilarityI8/HammingDistance kernels instead of full float32 cosine distance.\n\n## How they relate\n\nVector search is a separate structure that Corax calls into rather than something it implements itself: IndexSearcher just opens a Hnsw.SearchState against the current transaction and calls into it to read vectors back and run the nearest-neighbor search.',
     references: {
       docs: [
         { name: 'Search Engine: Corax', url: 'https://docs.ravendb.net/7.2/indexes/search-engine/corax' },
@@ -960,7 +960,7 @@ export const nodes: MapNode[] = [
     label: 'Lucene',
     category: 'indexing',
     summary:
-      'The older, still fully supported engine. LuceneIndexPersistence layers Lucene\'s own IndexWriter and per-field suggestion writers on top of LuceneVoronDirectory, Lucene\'s Directory implementation on Voron, which refuses to be constructed outside a write transaction - so a Lucene-backed index still persists transactionally through Voron rather than the OS filesystem.',
+      'The older, still fully supported engine. LuceneIndexPersistence layers Lucene\'s own IndexWriter and per-field suggestion writers on top of LuceneVoronDirectory, Lucene\'s Directory implementation on Voron. Lucene-backed indexes persist transactionally through Voron rather than the OS filesystem.',
     references: {
       docs: [
         { name: 'Indexes: Term Vectors', url: 'https://docs.ravendb.net/7.2/indexes/using-term-vectors' },
@@ -1009,7 +1009,7 @@ export const nodes: MapNode[] = [
     label: 'Follower',
     category: 'cluster',
     summary:
-      'The steady-state role: accepts AppendEntries from the current leader on its own thread, replying with a success or rejection for each one.',
+      'The steady-state role: accepts Raft\'s AppendEntries messages from the current leader on its own thread, replying with a success or rejection for each one.',
     references: {
       docs: [
         { name: 'Cluster Topology', url: 'https://docs.ravendb.net/7.2/server/clustering/rachis/cluster-topology' },
@@ -1070,7 +1070,7 @@ export const nodes: MapNode[] = [
     label: 'Commands',
     category: 'cluster',
     summary:
-      'The set of commands that can be proposed to and committed by the Raft log. CastVoteInTermCommand is one example: like every Rachis command it\'s a MergedTransactionCommand, so casting a vote runs through the same transaction-merger machinery that batches ordinary document writes.',
+      'The set of commands that can be proposed to and committed by the Raft log. CastVoteInTermCommand is one example: like every Rachis command it\'s a MergedTransactionCommand, so casting a vote runs through the same TransactionMerger machinery that batches ordinary document writes.',
     references: {
       docs: [
         { name: 'Consensus Operations', url: 'https://docs.ravendb.net/7.2/server/clustering/rachis/consensus-operations/' },
@@ -1132,7 +1132,7 @@ export const nodes: MapNode[] = [
     label: 'Outgoing',
     category: 'cluster',
     summary:
-      'The sending side: streams documents, tombstones, attachments, counters and time series onward. AbstractOutgoingReplicationHandler is generic over the context pool and operation-context types, so the same sending logic serves both the sharded and non-sharded outgoing handlers.',
+      'The sending side of the replication. It streams documents, tombstones, attachments, counters and time series onward. AbstractOutgoingReplicationHandler is generic over the context pool and operation-context types, so the same sending logic serves both the sharded and non-sharded outgoing handlers.',
     references: {
       docs: [
         { name: 'Replication Overview', url: 'https://docs.ravendb.net/7.2/server/clustering/replication/replication-overview' },
@@ -1153,7 +1153,7 @@ export const nodes: MapNode[] = [
     label: 'Incoming',
     category: 'cluster',
     summary:
-      'The receiving side: applies an incoming batch inside a write transaction and reports back. IncomingReplicationHandler raises separate DocumentsReceived, AttachmentStreamsReceived and Failed events so callers can react to a batch without polling.',
+      'The receiving side of the replication. It applies an incoming batch inside a write transaction and reports back. IncomingReplicationHandler raises separate DocumentsReceived, AttachmentStreamsReceived and Failed events so callers can react to a batch without polling.',
     references: {
       docs: [
         { name: 'Replication Overview', url: 'https://docs.ravendb.net/7.2/server/clustering/replication/replication' },
@@ -1173,7 +1173,7 @@ export const nodes: MapNode[] = [
     label: 'Change vectors',
     category: 'cluster',
     summary:
-      'The per-node etag vector stamped on every write in DocumentsStorage, not something replication adds on top - replication (and Subscriptions, ETL, PeriodicBackup, RevisionsStorage) just reads the one already there to decide newer / older / conflict. Most entries carry a node tag encoded in base-26 (A-Z, then AA, AB, ...); four special tags - RAFT, TRXN, SINK and MOVE - are recognized as literal string constants instead, ahead of the numeric etag that follows.',
+      'The per-node etag vector stamped on every write in DocumentsStorage. It\'s the value used in the replication (and Subscriptions, ETL, PeriodicBackup, RevisionsStorage) to compare and decide whether the other version is newer / older / in conflict with. Most entries carry a node tag encoded in base-26 (A-Z, then AA, AB, ...). In addition, four special tags: RAFT, TRXN, SINK and MOVE are recognized as literal string constants instead, ahead of the numeric etag that follows.',
     references: {
       docs: [
         { name: 'Change Vectors', url: 'https://docs.ravendb.net/7.2/server/clustering/replication/change-vector' },
@@ -1193,7 +1193,7 @@ export const nodes: MapNode[] = [
     label: 'ConflictManager',
     category: 'cluster',
     summary:
-      'Applies the configured conflict resolution when two nodes changed the same document concurrently. ConflictManager runs a fixed sequence of gates - HiLo special-case, identical-content merge, same-collection check, a scripted JavaScript resolver, then latest-wins (via ResolveConflictOnReplicationConfigurationChange) - falling back to a manual conflict only if none of them resolve it.',
+      'Applies the configured conflict resolution when two or more nodes changed the same document concurrently. ConflictManager runs a fixed sequence of gates: HiLo special-case, identical-content merge, same-collection check, a scripted JavaScript resolver, then latest-wins (via ResolveConflictOnReplicationConfigurationChange). It falls back to a manual conflict only if none of them resolve it.',
     references: {
       docs: [
         { name: 'Replication Conflicts', url: 'https://docs.ravendb.net/7.2/server/clustering/replication/replication-conflicts' },
@@ -1449,11 +1449,12 @@ export const nodes: MapNode[] = [
     label: 'Queue Sink (inbound)',
     category: 'integration',
     summary:
-      'The inbound direction: consuming Kafka / RabbitMQ messages into documents (Azure Queue Storage and Amazon SQS exist as configuration options but aren\'t actually supported yet - CreateInstance throws for them). QueueSinkLoader mirrors EtlLoader\'s shape almost exactly - one process array, one set of unique configuration names - just running the data transfer in the opposite direction.',
+      'The inbound direction integration that allows consuming messages and turning them into document operations. QueueSinkLoader mirrors EtlLoader\'s shape almost exactly just running the data transfer in the opposite direction.',
     references: {
       docs: [
         { name: 'Queue Sink: Apache Kafka', url: 'https://docs.ravendb.net/7.2/server/ongoing-tasks/queue-sink/kafka-queue-sink' },
         { name: 'Queue Sink: RabbitMQ', url: 'https://docs.ravendb.net/7.2/server/ongoing-tasks/queue-sink/rabbit-mq-queue-sink' },
+        { name: 'Queue Sink: Azure Service Bus', url: 'https://docs.ravendb.net/7.2/server/ongoing-tasks/queue-sink/azure-service-bus-queue-sink' },
       ],
       source: [{ name: 'src/Raven.Server/Documents/QueueSink', url: githubTreeUrl('src/Raven.Server/Documents/QueueSink') }],
     },
