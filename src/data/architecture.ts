@@ -480,7 +480,7 @@ export const nodes: MapNode[] = [
     category: 'storage',
     summary: 'Binary blobs attached to documents, stored as streams. They include the offloading/loading mechanism for the "remote attachment".',
     description:
-      'AttachmentsStorage keeps attachments in their own Voron table, separately from document JSON, so large binaries do not affect document reads. Eevery record is addressed by a 44-byte content hash (AttachmentHashSize), so identical content stored on several documents is kept once. RemoteAttachmentsStorage/RemoteAttachmentsSender and RemoteAttachmentHandler implement cold-storage tiering on top of that: an attachment\'s stream can be moved out to external storage (e.g. S3/Azure, typically as part of a backup) and deleted locally, then fetched back on demand by its external identifier instead of staying resident forever. For that purpose, the foundation of AbstractBackgroundWorkStorage is used. The in-memory model for a record and its deletion marker (Attachment / tombstone) is a flat tuple of fields (StorageId, Key, Etag, ChangeVector, content hash, size, stream). RevisionVersion is only populated on the copy kept for a revision, not on the live document\'s.',
+      'AttachmentsStorage keeps attachments in their own Voron table, separately from document JSON, so large binaries do not affect document reads. Every record is addressed by a 44-byte content hash (AttachmentHashSize), so identical content stored on several documents is kept once. RemoteAttachmentsStorage/RemoteAttachmentsSender and RemoteAttachmentHandler implement cold-storage tiering on top of that: an attachment\'s stream can be moved out to external storage (e.g. S3/Azure, typically as part of a backup) and deleted locally, then fetched back on demand by its external identifier instead of staying resident forever. For that purpose, the foundation of AbstractBackgroundWorkStorage is used. The in-memory model for a record and its deletion marker (Attachment / tombstone) is a flat tuple of fields (StorageId, Key, Etag, ChangeVector, content hash, size, stream). RevisionVersion is only populated on the copy kept for a revision, not on the live document\'s.',
     references: {
       docs: [
         { name: 'Attachments Overview', url: 'https://docs.ravendb.net/7.2/document-extensions/attachments/overview' },
@@ -906,7 +906,7 @@ export const nodes: MapNode[] = [
     label: 'Persistence',
     category: 'indexing',
     summary:
-      'The seam between the indexing subsystem and a search engine. Each indexing engine (Corax, Lucene) has its own. IndexPersistenceBase is their shared abstraction that handles opening  writers and readers, cache publishing, and cleanup.',
+      'The seam between the indexing subsystem and a search engine. Each indexing engine (Corax, Lucene) has its own. IndexPersistenceBase is their shared abstraction that handles opening writers and readers, cache publishing, and cleanup.',
     references: {
       docs: [
         { name: 'Search Engine: Corax', url: 'https://docs.ravendb.net/7.2/indexes/search-engine/corax' },
@@ -930,9 +930,9 @@ export const nodes: MapNode[] = [
     label: 'Corax & Vector Search',
     category: 'indexing',
     summary:
-      'The in-house search engine, with an addition of the HNSW-based vector similarity search.',
+      'The in-house search engine, with the addition of the HNSW-based vector similarity search.',
     description:
-      '## Corax\n\nCorax is RavenDB\'s custom full-text search engine. It builds index and provides querying capabilities on top of them. Documents flow in through an Analyzer, which composes a tokenizer (ITokenizer) with transformers like lower-casing in a staged pipeline that can resume tokenization across steps; IndexWriter then builds the inverted index from those tokens. At query time, IndexSearcher walks that index, switching a term\'s postings to a bitmap representation once they cross a 32MB threshold, trading memory for faster set operations.\n\n## Vector Search\n\nThe HNSW graph used for vector similarity search lives in Voron\'s Data/Graphs/Hnsw. Hnsw.Create persists it as a native Voron structure - a tree for node lookups, a Container for the raw vector blobs, and the graph\'s own options written into that tree. A vector can be quantized before it\'s stored: VectorQuantizer reduces it to a per-vector-scaled int8 or a 1-bit/binary packing, trading precision for a smaller graph and the cheaper CosineSimilarityI8/HammingDistance kernels instead of full float32 cosine distance.\n\n## How they relate\n\nVector search is a separate structure that Corax calls into rather than something it implements itself: IndexSearcher just opens a Hnsw.SearchState against the current transaction and calls into it to read vectors back and run the nearest-neighbor search.',
+      '## Corax\n\nCorax is RavenDB\'s custom full-text search engine. It builds indexes and provides querying capabilities on top of them. Documents flow in through an Analyzer, which composes a tokenizer (ITokenizer) with transformers like lower-casing in a staged pipeline that can resume tokenization across steps; IndexWriter then builds the inverted index from those tokens. At query time, IndexSearcher walks that index, switching a term\'s postings to a bitmap representation once they cross a 32MB threshold, trading memory for faster set operations.\n\n## Vector Search\n\nThe HNSW graph used for vector similarity search lives in Voron\'s Data/Graphs/Hnsw. Hnsw.Create persists it as a native Voron structure - a tree for node lookups, a Container for the raw vector blobs, and the graph\'s own options written into that tree. A vector can be quantized before it\'s stored: VectorQuantizer reduces it to a per-vector-scaled int8 or a 1-bit/binary packing, trading precision for a smaller graph and the cheaper CosineSimilarityI8/HammingDistance kernels instead of full float32 cosine distance.\n\n## How they relate\n\nVector search is a separate structure that Corax calls into rather than something it implements itself: IndexSearcher just opens a Hnsw.SearchState against the current transaction and calls into it to read vectors back and run the nearest-neighbor search.',
     references: {
       docs: [
         { name: 'Search Engine: Corax', url: 'https://docs.ravendb.net/7.2/indexes/search-engine/corax' },
@@ -1173,7 +1173,7 @@ export const nodes: MapNode[] = [
     label: 'Change vectors',
     category: 'cluster',
     summary:
-      'The per-node etag vector stamped on every write in DocumentsStorage. It\s the value used in the replication (and Subscriptions, ETL, PeriodicBackup, RevisionsStorage) to compare and decide whether the other version is newer / older / in conflict with. Most entries carry a node tag encoded in base-26 (A-Z, then AA, AB, ...). In addition, four special tags: RAFT, TRXN, SINK and MOVE are recognized as literal string constants instead, ahead of the numeric etag that follows.',
+      'The per-node etag vector stamped on every write in DocumentsStorage. It\'s the value used in the replication (and Subscriptions, ETL, PeriodicBackup, RevisionsStorage) to compare and decide whether the other version is newer / older / in conflict with. Most entries carry a node tag encoded in base-26 (A-Z, then AA, AB, ...). In addition, four special tags: RAFT, TRXN, SINK and MOVE are recognized as literal string constants instead, ahead of the numeric etag that follows.',
     references: {
       docs: [
         { name: 'Change Vectors', url: 'https://docs.ravendb.net/7.2/server/clustering/replication/change-vector' },
@@ -1449,7 +1449,7 @@ export const nodes: MapNode[] = [
     label: 'Queue Sink (inbound)',
     category: 'integration',
     summary:
-      'The inbound direction integration that allows consuming messages and turning them into documents\' opersations. QueueSinkLoader mirrors EtlLoader\'s shape almost exactly just running the data transfer in the opposite direction.',
+      'The inbound direction integration that allows consuming messages and turning them into document operations. QueueSinkLoader mirrors EtlLoader\'s shape almost exactly just running the data transfer in the opposite direction.',
     references: {
       docs: [
         { name: 'Queue Sink: Apache Kafka', url: 'https://docs.ravendb.net/7.2/server/ongoing-tasks/queue-sink/kafka-queue-sink' },

@@ -92,9 +92,9 @@ export const FLOWS: Flow[] = [
       },
       {
         nodeId: 'ai',
-        note: 'TextChunker splits the text into chunks. To save LLM tokens, each chunk is checked against the Embeddings Cache by content hash first. Only the chunks that miss the cache are sent to the embedding generating model to obtain its vector representation.',
+        note: 'TextChunker splits the text into chunks. To save LLM tokens, each chunk is checked against the Embeddings Cache by content hash first. Only the chunks that miss the cache are sent to the embedding-generating model to obtain its vector representation.',
       },
-      { nodeId: 'indexing', note: 'The vectors are indexed using HNSW algorithm.' },
+      { nodeId: 'indexing', note: 'The vectors are indexed using the HNSW algorithm.' },
       { nodeId: 'search-engines', note: "Corax answers a similarity query by calling into an HNSW graph - Voron's own data structure, not Corax's." },
       { nodeId: 'storage', note: 'The HNSW graph and the vector data it points to are persisted through Voron.' },
     ],
