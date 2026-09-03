@@ -55,6 +55,28 @@ function mixedCorner(source: Point, sourcePos: Position, target: Point, targetPo
   return point
 }
 
+// Chromium fails to auto-rotate the arrowhead marker on straight vertical
+// edges when the path's final segment is zero-length - which getSmoothStepPath
+// always emits for a straight top/bottom pair (e.g. "...L160 977L160 977").
+// It silently falls back to the marker's unrotated default (pointing right)
+// instead of the vertical tangent - horizontal edges hit the same duplicate-
+// point pattern but happen to render fine, so only vertical connections show
+// it. Stripping the redundant repeated point keeps the path's shape identical
+// while giving the browser a real segment to compute the tangent from.
+function dedupeSmoothStepPath(d: string): string {
+  const tokens = d.match(/[ML][^ML]*/g)
+  if (!tokens) return d
+  const out: string[] = []
+  let lastCoords: string | null = null
+  for (const token of tokens) {
+    const coords = token.slice(1).trim()
+    if (coords === lastCoords) continue
+    out.push(token)
+    lastCoords = coords
+  }
+  return out.join('')
+}
+
 function MapEdge({
   sourceX,
   sourceY,
@@ -101,7 +123,7 @@ function MapEdge({
 
   return (
     <BaseEdge
-      path={path}
+      path={dedupeSmoothStepPath(path)}
       labelX={labelX}
       labelY={labelY}
       label={label}
