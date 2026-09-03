@@ -1449,11 +1449,12 @@ export const nodes: MapNode[] = [
     label: 'Queue Sink (inbound)',
     category: 'integration',
     summary:
-      'The inbound direction: consuming Kafka / RabbitMQ messages into documents (Azure Queue Storage and Amazon SQS exist as configuration options but aren\'t actually supported yet - CreateInstance throws for them). QueueSinkLoader mirrors EtlLoader\'s shape almost exactly - one process array, one set of unique configuration names - just running the data transfer in the opposite direction.',
+      'The inbound direction integration that allows consuming messages and turning them into documents\' opersations. QueueSinkLoader mirrors EtlLoader\'s shape almost exactly just running the data transfer in the opposite direction.',
     references: {
       docs: [
         { name: 'Queue Sink: Apache Kafka', url: 'https://docs.ravendb.net/7.2/server/ongoing-tasks/queue-sink/kafka-queue-sink' },
         { name: 'Queue Sink: RabbitMQ', url: 'https://docs.ravendb.net/7.2/server/ongoing-tasks/queue-sink/rabbit-mq-queue-sink' },
+        { name: 'Queue Sink: Azure Service Bus', url: 'https://docs.ravendb.net/7.2/server/ongoing-tasks/queue-sink/azure-service-bus-queue-sink' },
       ],
       source: [{ name: 'src/Raven.Server/Documents/QueueSink', url: githubTreeUrl('src/Raven.Server/Documents/QueueSink') }],
     },
