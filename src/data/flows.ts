@@ -88,7 +88,7 @@ export const FLOWS: Flow[] = [
     steps: [
       {
         nodeId: 'documents-core',
-        note: "A document write bumps its change vector. EmbeddingsGenerationTask notices this change the same way asynchronous way any other ETL process or index does. ",
+        note: "A document write bumps its change vector. EmbeddingsGenerationTask notices this change the same asynchronous way any other ETL process or index does.",
       },
       {
         nodeId: 'ai',
