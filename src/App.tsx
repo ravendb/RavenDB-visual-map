@@ -189,8 +189,10 @@ export default function App() {
           <FlowNavBar
             canGoPrev={!flow.isFirstStep}
             canGoNext={!flow.isLastStep}
+            isLastStep={flow.isLastStep}
             onPrev={flow.prevStep}
             onNext={flow.nextStep}
+            onFinish={flow.stopFlow}
           />
         )}
       </div>

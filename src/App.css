@@ -506,6 +506,17 @@
   cursor: default;
 }
 
+.flow-nav-bar__finish {
+  background: #1cc8ee !important;
+  color: #0b1622 !important;
+  border-color: #1cc8ee !important;
+  font-weight: 600;
+}
+
+.flow-nav-bar__finish:hover {
+  background: #4fd8f5 !important;
+}
+
 /* Detail panel */
 
 .detail-panel {

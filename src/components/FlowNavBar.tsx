@@ -1,11 +1,23 @@
 interface FlowNavBarProps {
   canGoPrev: boolean
   canGoNext: boolean
+  isLastStep: boolean
   onPrev: () => void
   onNext: () => void
+  onFinish: () => void
 }
 
-export default function FlowNavBar({ canGoPrev, canGoNext, onPrev, onNext }: FlowNavBarProps) {
+export default function FlowNavBar({ canGoPrev, canGoNext, isLastStep, onPrev, onNext, onFinish }: FlowNavBarProps) {
+  if (isLastStep) {
+    return (
+      <div className="flow-nav-bar">
+        <button className="flow-nav-bar__finish" onClick={onFinish}>
+          The End
+        </button>
+      </div>
+    )
+  }
+
   return (
     <div className="flow-nav-bar">
       <button onClick={onPrev} disabled={!canGoPrev}>
