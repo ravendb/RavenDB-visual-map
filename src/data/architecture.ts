@@ -137,7 +137,7 @@ export const nodes: MapNode[] = [
     category: 'server',
     summary: 'The web server front door: request routing and the handlers that turn HTTP calls into database operations.',
     description:
-      'Every client request (and every Studio request) lands here first. The dispatcher itself (RequestRouter, RouteScanner) lives in the sibling src/Raven.Server/Routing folder; Web holds the per-resource-type Handlers it dispatches to (documents, attachments, indexes, ...), the shared RequestHandler base class, and the endpoints under Web/Authentication for managing client certificates and two-factor authentication. Connection-level authentication happens earlier, at the HTTPS layer - see the Security node.',
+      'This is the main entry point for every incoming request (whether it comes from a client app or the RavenDB Studio interface).\n\nThe Router (`/Routing`) acts like a switchboard: receives the request and decides where it needs to go.\n\nRequest Handlers (`/Web`) contains the actual code that processes the request, organized by category (e.g., documents, attachments, indexes). It also handles user authentication features like client certificates and 2FA.\n\nConnection-level security (HTTPS) happens one step earlier, before the request even reaches this layer (see the `Security & HTTPS` node).',
     references: {
       docs: [
         { name: 'Introduction to the REST API', url: 'https://docs.ravendb.net/7.2/client-api/rest-api/rest-api-intro/' },
@@ -606,9 +606,9 @@ export const nodes: MapNode[] = [
     id: 'core-archival',
     label: 'Archival',
     category: 'storage',
-    summary: 'Marks documents past their scheduled @archive-at time as archived, so other subsystems, like indexing, can skip them.',
+    summary: 'Marks documents past their scheduled `@archive-at` time as archived, so other subsystems, like indexing, can skip them.',
     description:
-      'DataArchivalStorage walks the DocumentsByArchiveAtDateTime tree keyed on the @archive-at metadata property; once a document\'s time has passed, it sets the Archived metadata flag, removes @archive-at, and ORs in DocumentFlags.Archived before writing the document back - unlike Refresh and Expiration it explicitly ignores conflicts. DataArchivist is the background loop: it wakes every ArchiveFrequencyInSec (default 60s), pulls a batch from DataArchivalStorage, and applies it transactionally through ArchiveDocumentsCommand.',
+      'The DataArchivalStorage service automatically updates the status of documents whose target time in the `@archive-at` metadata field has passed. \n\nIn the background, a recurring DataArchivist task runs periodically (every 60 seconds by default) to query and identify eligible records. Upon finding matching documents, the system safely marks them as archived and removes the `@archive-at` tag in a single transaction. \n\nThis mechanism automates the data lifecycle, keeping active indexes lean and cleanly separating operational data from historical records. Ultimately, it eliminates the need for manual data cleanup and streamlines database maintenance.',
     references: {
       docs: [
         { name: 'Data Archival: Overview', url: 'https://docs.ravendb.net/7.2/data-archival/overview' },
