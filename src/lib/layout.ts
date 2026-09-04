@@ -17,11 +17,16 @@ export const MACRO_POSITIONS: Record<string, { x: number; y: number }> = {
   // lined up with its opposite number in the right-hand column below
   // (sharding/backup, ai/subscriptions, indexing/sinks) so the two columns
   // read as matching horizontal rows, not just as independently-spaced stacks.
-  sharding: { x: 50, y: 280 },
-  // y:450 (not 430, like its row partner) lines its center up with the
-  // Storages handle "embeddings tasks" actually exits from, so that edge
-  // runs dead straight instead of stepping down to meet it.
-  ai: { x: 50, y: 450 },
+  // y:255 (not 280) nudges Sharding's bottom edge up just enough that the
+  // detour http-ai-agents takes around it (forced since AI Agents sits
+  // directly beneath Sharding in this column) lands well clear of the
+  // documents-backup detour, which independently bends at y=392 - the two
+  // used to land on the exact same line.
+  sharding: { x: 50, y: 255 },
+  // AI Agents sits above Embeddings - it's the conversational/tool-calling
+  // side of the AI story, Embeddings is the vector-generation side below it.
+  'ai-agents': { x: 50, y: 450 },
+  ai: { x: 50, y: 590 },
   indexing: { x: 50, y: 740 },
   // Search Engines is permanently expanded (2 children: Corax, Lucene),
   // stacked in a single column via childColumns: 1 (~216 tall, ~278 wide) -

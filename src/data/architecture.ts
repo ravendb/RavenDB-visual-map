@@ -220,17 +220,38 @@ export const nodes: MapNode[] = [
   },
   {
     id: 'ai',
-    label: 'AI / Embeddings',
+    label: 'Embeddings',
     category: 'indexing',
-    summary: 'Turning text into embeddings AND the chat/assistant integrations with external AI providers.',
+    summary: 'Turning text into embeddings: a dedicated ETL type that chunks changed documents and embeds them, with a cache to skip work already done.',
     description:
-      "EmbeddingsGenerationTask is a literal ETL type (EtlType.EmbeddingsGeneration, alongside Raven/SQL/OLAP ETL) that tails the document change feed by etag - the same mechanism every index and other ETL uses - rather than firing synchronously off SaveChanges. It hands each batch to AiWorker, which chunks the text with TextChunker and checks every chunk against the Embeddings Cache by content hash first; only chunks that miss the cache actually get embedded, either through RavenDB's own bundled ONNX model (no external call) or one of the configured remote providers. ChatCompletionClient is the client for the user's own configured AI provider; AiAssistant is a separate, license-gated proxy to RavenDB's own cloud-hosted assistant at api.ravendb.net and does not use ChatCompletionClient or the user's provider config. What this produces is just a vector field on a document - Search Engines is what actually makes that field searchable by similarity.",
+      "EmbeddingsGenerationTask is a literal ETL type (EtlType.EmbeddingsGeneration, alongside Raven/SQL/OLAP ETL) that tails the document change feed by etag - the same mechanism every index and other ETL uses - rather than firing synchronously off SaveChanges. It hands each batch to AiWorker, which chunks the text with TextChunker and checks every chunk against the Embeddings Cache by content hash first; only chunks that miss the cache actually get embedded, either through RavenDB's own bundled ONNX model (no external call) or one of the configured remote providers. What this produces is just a vector field on a document - Search Engines is what actually makes that field searchable by similarity.",
     references: {
       docs: [
         { name: 'AI Integration & Vector Search', url: 'https://docs.ravendb.net/7.2/ai-integration/overview' },
         { name: 'The Embeddings Generation Task', url: 'https://docs.ravendb.net/7.2/ai-integration/generating-embeddings/embeddings-generation-task/' },
       ],
       source: [{ name: 'src/Raven.Server/Documents/AI', url: githubTreeUrl('src/Raven.Server/Documents/AI') }],
+    },
+  },
+  {
+    id: 'ai-agents',
+    label: 'AI Agents',
+    category: 'server',
+    summary: 'Server-hosted AI agents that mediate a conversation between a client, an LLM and the database, calling tools to read or act on data.',
+    description:
+      "An AI agent is configured (prompt, tools, output schema) and registered with the server through AiAgentHandler's admin endpoints, then run over `/databases/*/ai/agent`. Each turn is driven by ConversationHandler, which persists the exchange as a ConversationDocument (via PutConversationCommand) and talks to the configured provider through the same ChatCompletionClient the Embeddings ETL uses - not through AiAssistant, which is a separate, license-gated proxy to RavenDB's own cloud assistant. AbstractAiAgentProcessor is the base every one of these HTTP-facing processors (add/update, delete, run, test, generate client code) runs on. Because a conversation and its messages are themselves documents, everything an agent reads or writes goes through the ordinary Storages path.",
+    references: {
+      docs: [
+        { name: 'AI Agents: Overview', url: 'https://docs.ravendb.net/7.1/ai-integration/ai-agents/ai-agents_overview/' },
+        { name: 'Creating AI Agents (Studio)', url: 'https://docs.ravendb.net/7.2/ai-integration/ai-agents/creating-ai-agents/creating-ai-agents_studio' },
+        { name: 'Creating AI Agents (API)', url: 'https://docs.ravendb.net/7.2/ai-integration/ai-agents/creating-ai-agents/creating-ai-agents_api' },
+      ],
+      source: [{ name: 'src/Raven.Server/Documents/Handlers/AI/Agents', url: githubTreeUrl('src/Raven.Server/Documents/Handlers/AI/Agents') }],
+    },
+    codeRef: {
+      file: 'src/Raven.Server/Documents/Handlers/AI/Agents/AbstractAiAgentProcessor.cs',
+      startLine: 23,
+      expectSymbol: 'abstract class AbstractAiAgentProcessor',
     },
   },
   {
@@ -325,7 +346,7 @@ export const nodes: MapNode[] = [
     category: 'integration',
     summary: 'Incoming data movement: consumes an external stream - a message queue or a database\'s change-data-capture feed - into documents.',
     description:
-      'QueueSink consumes Kafka/RabbitMQ messages into documents; CdcSink ingests change-data-capture streams from an external relational database (PostgreSQL, SQL Server, MySQL). Both mirror EtlLoader\'s shape almost exactly - one process per configured source - just running the data transfer in the opposite direction.',
+      '`QueueSink` consumes Kafka/RabbitMQ messages into documents; `CdcSink` ingests change-data-capture streams from an external relational database (`PostgreSQL, SQL Server, MySQL`). Both mirror `EtlLoader`\'s shape almost exactly - one process per configured source - just running the data transfer in the opposite direction.',
     references: {
       docs: [
         { name: 'Queue Sink: Apache Kafka', url: 'https://docs.ravendb.net/7.2/server/ongoing-tasks/queue-sink/kafka-queue-sink' },
@@ -1470,7 +1491,7 @@ export const nodes: MapNode[] = [
     label: 'Smuggler (import / export)',
     category: 'integration',
     summary:
-      'Bulk import and export of a database, with sharding-aware companions sitting next to the main implementation. DatabaseSmuggler (Smuggler/Documents) is the non-sharded case; ShardedDatabaseSmuggler and SingleShardDatabaseSmuggler live right beside it for the sharded paths.',
+      'Bulk import and export of a database, with sharding-aware companions sitting next to the main implementation. DatabaseSmuggler (`Smuggler/Documents`) is the non-sharded case; ShardedDatabaseSmuggler and SingleShardDatabaseSmuggler live right beside it for the sharded paths.',
     references: {
       docs: [
         { name: 'What is Smuggler', url: 'https://docs.ravendb.net/7.2/client-api/smuggler/what-is-smuggler' },
@@ -1670,7 +1691,7 @@ export const edges: MapEdge[] = [
     target: 'documents-core',
     label: 'writes documents',
     description:
-      "A Sink (QueueSink or CdcSink) runs the same shape as ETL in reverse: it consumes an external stream - a message queue or a change-data-capture feed - and writes the resulting documents into Storages like any other write.",
+      "A Sink (`QueueSink` or `CdcSink`) runs the same shape as ETL in reverse: it consumes an external stream - a message queue or a change-data-capture feed - and writes the resulting documents into Storages like any other write.",
   },
   {
     id: 'documents-integrations',
@@ -1741,6 +1762,22 @@ export const edges: MapEdge[] = [
     label: 'change feed',
     description:
       "SubscriptionStorage pushes matching documents to a worker as they change on the same internal feed, resuming from the change vector its last acknowledged batch ended on rather than replaying the whole collection.",
+  },
+  {
+    id: 'http-ai-agents',
+    source: 'http',
+    target: 'ai-agents',
+    label: 'routes to',
+    description:
+      "A conversation turn is just another API call: AiAgentHandler's endpoints (`/databases/*/ai/agent` and its admin/test/generate-code siblings) are routed here like any other request, gated by the same authorization checks.",
+  },
+  {
+    id: 'ai-agents-documents',
+    source: 'ai-agents',
+    target: 'documents-core',
+    label: 'reads/writes documents',
+    description:
+      "A conversation and its messages are persisted as an ordinary document (ConversationDocument, written through PutConversationCommand), and an agent's tools read and write whatever documents they're configured to touch - both go through Storages like any other write.",
   },
 ]
 

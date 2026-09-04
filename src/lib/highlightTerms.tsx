@@ -37,7 +37,6 @@ const SINGLE_WORD_TERMS = [
 // them case-sensitively carries no risk of catching ordinary words.
 const ACRONYMS = [
   'ACID',
-  'AI',
   'API',
   'BI',
   'ETL',
