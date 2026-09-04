@@ -138,8 +138,12 @@ function collectMatches(text: string, re: RegExp): Span[] {
 
 let keySeed = 0
 
-/** Renders `text` as plain strings interleaved with <code> spans around recognized terms. */
-export function highlightTerms(text: string): ReactNode[] {
+// Manual override: wrap any word/phrase in backticks in architecture.ts prose
+// (e.g. `write batch`) to force it into a <code> span even if it doesn't
+// match any of the automatic patterns above.
+const MANUAL_TAG_RE = /`([^`\n]+)`/g
+
+function highlightAutoTerms(text: string): ReactNode[] {
   const spans = [...collectMatches(text, CASE_SENSITIVE_RE), ...collectMatches(text, PHRASE_RE)]
   // Earliest match first; on a tie, the longer one wins (so "change vectors"
   // beats a would-be shorter overlapping match starting at the same spot).
@@ -158,5 +162,27 @@ export function highlightTerms(text: string): ReactNode[] {
     cursor = span.end
   }
   if (cursor < text.length) parts.push(text.slice(cursor))
+  return parts
+}
+
+/**
+ * Renders `text` as plain strings interleaved with <code> spans around
+ * recognized terms, plus any span the author manually wrapped in backticks.
+ */
+export function highlightTerms(text: string): ReactNode[] {
+  const re = new RegExp(MANUAL_TAG_RE)
+  const parts: ReactNode[] = []
+  let cursor = 0
+  let m: RegExpExecArray | null
+  while ((m = re.exec(text))) {
+    if (m.index > cursor) parts.push(...highlightAutoTerms(text.slice(cursor, m.index)))
+    parts.push(
+      <code key={`term-${keySeed++}`} className="inline-code">
+        {m[1]}
+      </code>,
+    )
+    cursor = m.index + m[0].length
+  }
+  if (cursor < text.length) parts.push(...highlightAutoTerms(text.slice(cursor)))
   return parts
 }
