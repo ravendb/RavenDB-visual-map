@@ -12,7 +12,7 @@ export default function FlowNavBar({ canGoPrev, canGoNext, isLastStep, onPrev, o
     return (
       <div className="flow-nav-bar">
         <button className="flow-nav-bar__finish" onClick={onFinish}>
-          Koniec
+          The End
         </button>
       </div>
     )
