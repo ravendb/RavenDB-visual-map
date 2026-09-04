@@ -60,9 +60,6 @@ export default function NodeCard({
         {CATEGORY_LABELS[category]}
       </div>
       <div className="map-node__label">{label}</div>
-      <div className="map-node__meta">
-        {hasChildren && !permanent && expanded && <span className="map-node__expand">collapse ↑</span>}
-      </div>
       {children}
     </div>
   )

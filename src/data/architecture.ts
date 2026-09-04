@@ -186,7 +186,7 @@ export const nodes: MapNode[] = [
     category: 'indexing',
     summary: 'The server-side indexing subsystem: index definitions, the workers that keep indexes up to date, and the choice of search engine per index.',
     description:
-      'IndexStore owns every index in a database; each Index instance runs its own indexing thread, pulling changed documents through the Workers pipeline. This layer is engine-agnostic: Persistence/Corax and Persistence/Lucene are the two backends an index can be written through. Auto-indexes are created here on demand for queries that match no existing index; Static indexes come from user-supplied definitions.',
+      'IndexStore owns every index in a database; each Index instance runs its own indexing thread, pulling changed documents through the Workers pipeline. This layer is engine-agnostic: `Persistence/Corax` and `Persistence/Lucene` are the two backends an index can be written through. Auto-indexes are created here on demand for queries that match no existing index; Static indexes come from user-supplied definitions.',
     references: {
       docs: [
         { name: 'What are Indexes', url: 'https://docs.ravendb.net/7.2/indexes/what-are-indexes' },
@@ -674,7 +674,7 @@ export const nodes: MapNode[] = [
     label: 'Schema',
     category: 'storage',
     summary:
-      'Schema versioning and upgrade transactions for a Voron environment. VoronSchemaUpdater walks the version history one step at a time until the stored file reaches the current schema version; the per-version upgrade classes it loads by reflection live in Raven.Server (Raven.Server.Storage.Schema.Updates.<scope>.<toVersion>.From<fromVersion>), not inside Voron itself.',
+      'Schema versioning and upgrade transactions for a Voron environment. VoronSchemaUpdater walks the version history one step at a time until the stored file reaches the current schema version; the per-version upgrade classes it loads by reflection live in Raven.Server, not inside Voron itself.',
     references: {
       source: [{ name: 'src/Voron/Schema', url: githubTreeUrl('src/Voron/Schema') }],
     },

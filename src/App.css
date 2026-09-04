@@ -387,14 +387,6 @@
   line-height: 1.3;
 }
 
-.map-node__meta {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 6px;
-  font-size: 10.5px;
-  color: var(--color-text-muted);
-}
-
 /* Flow playback highlight */
 
 .map-node--flow-visited {
