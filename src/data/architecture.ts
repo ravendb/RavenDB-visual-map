@@ -1567,7 +1567,7 @@ export const nodes: MapNode[] = [
 
 export const edges: MapEdge[] = [
   {
-    id: 'client-security',
+    id: 'client-sdks-to-security-https',
     source: 'client-sdks',
     target: 'security-https',
     label: 'HTTPS',
@@ -1575,7 +1575,7 @@ export const edges: MapEdge[] = [
       "The client authenticates every connection with an X.509 client certificate over TLS, rather than a username and password. That handshake completes before the request ever reaches the routing layer.",
   },
   {
-    id: 'studio-security',
+    id: 'studio-management-ui-to-security-https',
     source: 'studio-management-ui',
     target: 'security-https',
     label: 'HTTPS',
@@ -1583,7 +1583,7 @@ export const edges: MapEdge[] = [
       "Studio is just another HTTP client of the same server, so its requests go through the identical certificate-based TLS handshake as any SDK client before they're routed anywhere.",
   },
   {
-    id: 'security-http',
+    id: 'security-https-to-http-routing-layer',
     source: 'security-https',
     target: 'http-routing-layer',
     label: 'authenticates, routes to',
@@ -1591,7 +1591,7 @@ export const edges: MapEdge[] = [
       "HttpsConnectionMiddleware validates the connecting certificate as the TLS connection is established, and the resulting authorization level is attached to the request before routing hands it to a handler - that level is what gates access to each one.",
   },
   {
-    id: 'http-sharding',
+    id: 'http-routing-layer-to-sharding',
     source: 'http-routing-layer',
     target: 'sharding',
     label: 'sharded databases',
@@ -1599,7 +1599,7 @@ export const edges: MapEdge[] = [
       "When a request targets a database configured as sharded, routing hands it to ShardedDatabaseContext's execution path instead of the normal per-database handler - the client can't tell the difference either way.",
   },
   {
-    id: 'sharding-documents',
+    id: 'sharding-to-storages',
     source: 'sharding',
     target: 'storages',
     label: 'per-shard requests',
@@ -1607,7 +1607,7 @@ export const edges: MapEdge[] = [
       'ShardLocator resolves which shard (bucket) an operation belongs to, and the Executors fan it out to the Storages instance running on that shard, merging the per-shard results back into one answer.',
   },
   {
-    id: 'http-documents',
+    id: 'http-routing-layer-to-storages',
     source: 'http-routing-layer',
     target: 'storages',
     label: 'routes to',
@@ -1615,7 +1615,7 @@ export const edges: MapEdge[] = [
       "A non-sharded database request is routed straight to that database's Storages subsystems - documents, attachments, revisions, and the rest - once Security has authorized it.",
   },
   {
-    id: 'http-cluster',
+    id: 'http-routing-layer-to-clustering-rachis',
     source: 'http-routing-layer',
     target: 'clustering-rachis',
     label: 'server-to-server',
@@ -1623,7 +1623,7 @@ export const edges: MapEdge[] = [
       'Server-to-server traffic - what nodes send each other to run Raft - arrives over the same HTTP layer as client requests, just routed to Rachis\'s own endpoints instead of a database handler.',
   },
   {
-    id: 'documents-indexing',
+    id: 'storages-to-indexing',
     source: 'storages',
     target: 'indexing',
     label: 'feeds',
@@ -1631,7 +1631,7 @@ export const edges: MapEdge[] = [
       "Every write to Storages bumps the changed document's etag on the internal change feed. Each Index's own indexing thread tails that feed and reindexes whatever changed - the same mechanism ETL and Data Subscriptions key off too.",
   },
   {
-    id: 'indexing-engines',
+    id: 'indexing-to-search-engines',
     source: 'indexing',
     target: 'search-engines',
     label: 'written through',
@@ -1639,7 +1639,7 @@ export const edges: MapEdge[] = [
       "IndexStore is engine-agnostic - an index is actually written through whichever of Corax or Lucene is configured for it. That's what turns an indexed field into something a query can search.",
   },
   {
-    id: 'documents-ai',
+    id: 'storages-to-embeddings',
     source: 'storages',
     target: 'embeddings',
     label: 'embeddings tasks',
@@ -1647,7 +1647,7 @@ export const edges: MapEdge[] = [
       'EmbeddingsGenerationTask is itself a kind of ETL process, so it tails the same document change feed an index does rather than hooking synchronously into the write path. It hands each batch to AiWorker to chunk and embed.',
   },
   {
-    id: 'ai-indexing',
+    id: 'embeddings-to-indexing',
     source: 'embeddings',
     target: 'indexing',
     label: 'vector fields',
@@ -1655,7 +1655,7 @@ export const edges: MapEdge[] = [
       "Once AiWorker has a vector for a chunk - freshly generated, or reused from the Embeddings Cache by content hash - it's written onto the document as a vector field, and Indexing picks it up like any other field without needing to know an AI provider was involved.",
   },
   {
-    id: 'documents-storage',
+    id: 'storages-to-storage-engine-voron',
     source: 'storages',
     target: 'storage-engine-voron',
     label: 'persists via',
@@ -1663,7 +1663,7 @@ export const edges: MapEdge[] = [
       'Every Storages subsystem - documents, attachments, revisions and the rest - is built directly on a Voron storage environment; nothing on this side of the diagram reaches disk any other way.',
   },
   {
-    id: 'engines-storage',
+    id: 'search-engines-to-storage-engine-voron',
     source: 'search-engines',
     target: 'storage-engine-voron',
     label: 'persists via',
@@ -1671,14 +1671,14 @@ export const edges: MapEdge[] = [
       "Corax persists its inverted index - and the HNSW graph behind vector search - through Voron directly; Lucene does the same via LuceneVoronDirectory. Both engines end up on the same storage engine underneath.",
   },
   {
-    id: 'cluster-storage',
+    id: 'clustering-rachis-to-storage-engine-voron',
     source: 'clustering-rachis',
     target: 'storage-engine-voron',
     label: 'ACID Raft log',
     description: "Rachis keeps its own Raft log ACID by storing it in Voron - the same durability guarantee every other subsystem on this map gets from the same engine.",
   },
   {
-    id: 'documents-etl',
+    id: 'storages-to-etl',
     source: 'storages',
     target: 'etl',
     label: 'change feed',
@@ -1686,7 +1686,7 @@ export const edges: MapEdge[] = [
       "Like an index, an outgoing ETL process tails Storages' change feed by etag and transforms whatever changed for its configured destination - it doesn't hook synchronously into the write path either.",
   },
   {
-    id: 'sinks-documents',
+    id: 'sinks-to-storages',
     source: 'sinks',
     target: 'storages',
     label: 'writes documents',
@@ -1694,7 +1694,7 @@ export const edges: MapEdge[] = [
       "A Sink (`QueueSink` or `CdcSink`) runs the same shape as ETL in reverse: it consumes an external stream - a message queue or a change-data-capture feed - and writes the resulting documents into Storages like any other write.",
   },
   {
-    id: 'documents-integrations',
+    id: 'storages-to-integrations',
     source: 'storages',
     target: 'integrations',
     label: 'bulk ops & migration',
@@ -1702,7 +1702,7 @@ export const edges: MapEdge[] = [
       "Smuggler's bulk import/export, SqlMigration's one-time pull, and the PostgreSQL protocol's direct queries all read and write Storages directly - independent of the ongoing-task machinery ETL and Sinks use.",
   },
   {
-    id: 'documents-replication',
+    id: 'storages-to-replication',
     source: 'storages',
     target: 'replication',
     label: 'change feed',
@@ -1710,7 +1710,7 @@ export const edges: MapEdge[] = [
       'A committed change is exposed on the same internal change feed Replication reads from. ReplicationLoader streams it to the destination, which applies it or raises a conflict based on comparing change vectors.',
   },
   {
-    id: 'documents-backup',
+    id: 'storages-to-backup-restore',
     source: 'storages',
     target: 'backup-restore',
     label: 'ongoing task',
@@ -1718,7 +1718,7 @@ export const edges: MapEdge[] = [
       "A scheduled BackupTask reads a database's Storages state on the responsible node and writes a full or incremental backup - a logical export or a Voron snapshot - to the configured destination.",
   },
   {
-    id: 'documents-cluster',
+    id: 'storages-to-clustering-rachis',
     source: 'storages',
     target: 'clustering-rachis',
     label: 'cluster-wide ops',
@@ -1726,7 +1726,7 @@ export const edges: MapEdge[] = [
       "An operation that touches cluster-wide state - compare-exchange, a cluster transaction - is raised as a command to Rachis instead of being handled as a local write, and only commits once a majority of nodes acknowledge it.",
   },
   {
-    id: 'documents-tx-merger',
+    id: 'storages-to-transaction-merger',
     source: 'storages',
     target: 'transaction-merger',
     label: 'batches writes',
@@ -1734,7 +1734,7 @@ export const edges: MapEdge[] = [
       "Storages hands a validated write to TransactionMerger rather than committing it directly - it's queued there and merged with other pending operations into one shared Voron transaction.",
   },
   {
-    id: 'tx-merger-storage',
+    id: 'transaction-merger-to-storage-engine-voron',
     source: 'transaction-merger',
     target: 'storage-engine-voron',
     label: 'commits via',
@@ -1742,21 +1742,21 @@ export const edges: MapEdge[] = [
       "TransactionMerger's single dedicated thread commits its batched queue as one Voron write transaction - what lets many concurrent writers merge into a transaction without blocking each other directly on Voron's single-writer model.",
   },
   {
-    id: 'http-queries',
+    id: 'http-routing-layer-to-queries-rql',
     source: 'http-routing-layer',
     target: 'queries-rql',
     label: 'routes to',
     description: 'An RQL query request is routed to AbstractQueryRunner, which parses it and matches it against a static or auto-index.',
   },
   {
-    id: 'queries-documents',
+    id: 'queries-rql-to-storages',
     source: 'queries-rql',
     target: 'storages',
     label: 'reads via',
     description: "Once a query is parsed, AbstractQueryRunner hands it to IndexStore - part of Storages - to run against the matched index and read back the results.",
   },
   {
-    id: 'documents-subscriptions',
+    id: 'storages-to-data-subscriptions',
     source: 'storages',
     target: 'data-subscriptions',
     label: 'change feed',
@@ -1764,7 +1764,7 @@ export const edges: MapEdge[] = [
       "SubscriptionStorage pushes matching documents to a worker as they change on the same internal feed, resuming from the change vector its last acknowledged batch ended on rather than replaying the whole collection.",
   },
   {
-    id: 'http-ai-agents',
+    id: 'http-routing-layer-to-ai-agents',
     source: 'http-routing-layer',
     target: 'ai-agents',
     label: 'routes to',
@@ -1772,7 +1772,7 @@ export const edges: MapEdge[] = [
       "A conversation turn is just another API call: AiAgentHandler's endpoints (`/databases/*/ai/agent` and its admin/test/generate-code siblings) are routed here like any other request, gated by the same authorization checks.",
   },
   {
-    id: 'ai-agents-documents',
+    id: 'ai-agents-to-storages',
     source: 'ai-agents',
     target: 'storages',
     label: 'reads/writes documents',

@@ -79,7 +79,7 @@ export default function App() {
   // inside it) comes back exactly as it was left, not re-expanded by default -
   // see urlState.ts's defaultExpandedFor for the one case that still infers it.
   function applyUrlState(state: MapUrlState) {
-    setSelectedEdgeId(null)
+    setSelectedEdgeId(state.edgeId)
     focus(state.nodeId)
     if (state.flowId) {
       setExpandedNodeId(null)
@@ -122,11 +122,11 @@ export default function App() {
       return
     }
     const state: MapUrlState = flow.activeFlowId
-      ? { nodeId: selectedNodeId, expandedNodeId: null, flowId: flow.activeFlowId, step: flow.stepNumber }
-      : { nodeId: selectedNodeId, expandedNodeId, flowId: null, step: null }
+      ? { nodeId: selectedNodeId, expandedNodeId: null, edgeId: null, flowId: flow.activeFlowId, step: flow.stepNumber }
+      : { nodeId: selectedNodeId, expandedNodeId, edgeId: selectedEdgeId, flowId: null, step: null }
     const hash = buildUrlHash(state)
     window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}${hash}`)
-  }, [selectedNodeId, expandedNodeId, flow.activeFlowId, flow.stepNumber])
+  }, [selectedNodeId, expandedNodeId, selectedEdgeId, flow.activeFlowId, flow.stepNumber])
 
   const breadcrumbLabel = expandedNodeId ? getNode(expandedNodeId)?.label ?? null : null
 

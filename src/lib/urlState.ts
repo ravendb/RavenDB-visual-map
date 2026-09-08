@@ -4,20 +4,22 @@
 // app is a static single-page site (GitHub Pages) with no server-side route
 // to match against.
 
-import { getChildren, getNode } from '../data/architecture'
+import { getChildren, getEdge, getNode } from '../data/architecture'
 
 export interface MapUrlState {
   /** The macro or micro node id currently selected/opened, if any. */
   nodeId: string | null
   /** The macro node id whose children are currently expanded in place, if any. */
   expandedNodeId: string | null
+  /** The connection currently selected/opened, if any - mutually exclusive with nodeId. */
+  edgeId: string | null
   /** The active flow's id, if a flow is playing (expandedNodeId is unused while one is). */
   flowId: string | null
   /** 1-based step number within the flow, when flowId is set. */
   step: number | null
 }
 
-const EMPTY_STATE: MapUrlState = { nodeId: null, expandedNodeId: null, flowId: null, step: null }
+const EMPTY_STATE: MapUrlState = { nodeId: null, expandedNodeId: null, edgeId: null, flowId: null, step: null }
 
 // Clicking a node - see handleSelectNode in App.tsx - always expands it in
 // place if it has children, or expands its parent if it's a child tile. A
@@ -53,16 +55,20 @@ export function parseUrlHash(hash: string): MapUrlState {
   // tile that's expanded in place but has no node selected/detail panel
   // open (`#~storages`) - e.g. a click on the expand chevron rather than
   // the tile itself. No real node id starts with `~`, so this can't collide
-  // with a genuine node link. Anything needing more than one field (a flow
-  // step, or a node whose expanded state diverges from its own default
-  // above) falls back to key=value pairs.
+  // with a genuine node link. A connection's own id is source-to-target
+  // (`#security-https-to-http-routing-layer`), which no node id can equal
+  // either, since node ids never contain "-to-". Anything needing more than
+  // one field (a flow step, or a node whose expanded state diverges from
+  // its own default above) falls back to key=value pairs.
   if (!raw.includes('=')) {
     try {
       if (raw.startsWith('~')) {
         const expandedNodeId = decodeURIComponent(raw.slice(1))
         return { ...EMPTY_STATE, expandedNodeId }
       }
-      const nodeId = decodeURIComponent(raw)
+      const decoded = decodeURIComponent(raw)
+      if (getEdge(decoded)) return { ...EMPTY_STATE, edgeId: decoded }
+      const nodeId = decoded
       return { ...EMPTY_STATE, nodeId, expandedNodeId: defaultExpandedFor(nodeId) }
     } catch {
       return EMPTY_STATE
@@ -74,6 +80,7 @@ export function parseUrlHash(hash: string): MapUrlState {
   const step = params.get('step')
   return {
     nodeId,
+    edgeId: null,
     // An `expanded` param that's present but empty is an explicit "collapsed"
     // and must stick; one that's missing entirely (an older link, or a flow
     // link that never carried one) falls back to the same default a bare
@@ -93,6 +100,9 @@ export function buildUrlHash(state: MapUrlState): string {
     // to survive a reload/share, same as it would outside a flow.
     if (state.nodeId) params.id = state.nodeId
     return `#${new URLSearchParams(params).toString()}`
+  }
+  if (state.edgeId) {
+    return `#${encodeURIComponent(state.edgeId)}`
   }
   if (state.nodeId) {
     if (state.expandedNodeId === defaultExpandedFor(state.nodeId)) {
