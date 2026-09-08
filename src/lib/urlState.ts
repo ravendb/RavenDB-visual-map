@@ -49,11 +49,19 @@ export function parseUrlHash(hash: string): MapUrlState {
   if (!raw || raw.startsWith('/')) return EMPTY_STATE
   // A bare token with no `=` is the common case - just a node id
   // (`#storage`) - kept free of query-string noise for the shareable URLs
-  // this is mainly meant to produce. Anything needing more than one field
-  // (a flow step, or a node whose expanded state diverges from the default
+  // this is mainly meant to produce. A leading `~` is the same idea for a
+  // tile that's expanded in place but has no node selected/detail panel
+  // open (`#~storages`) - e.g. a click on the expand chevron rather than
+  // the tile itself. No real node id starts with `~`, so this can't collide
+  // with a genuine node link. Anything needing more than one field (a flow
+  // step, or a node whose expanded state diverges from its own default
   // above) falls back to key=value pairs.
   if (!raw.includes('=')) {
     try {
+      if (raw.startsWith('~')) {
+        const expandedNodeId = decodeURIComponent(raw.slice(1))
+        return { ...EMPTY_STATE, expandedNodeId }
+      }
       const nodeId = decodeURIComponent(raw)
       return { ...EMPTY_STATE, nodeId, expandedNodeId: defaultExpandedFor(nodeId) }
     } catch {
@@ -61,7 +69,7 @@ export function parseUrlHash(hash: string): MapUrlState {
     }
   }
   const params = new URLSearchParams(raw)
-  const nodeId = params.get('node')
+  const nodeId = params.get('id')
   const flowId = params.get('flow')
   const step = params.get('step')
   return {
@@ -83,17 +91,17 @@ export function buildUrlHash(state: MapUrlState): string {
     const params: Record<string, string> = { flow: state.flowId, step: String(state.step ?? 1) }
     // Whether the flow step's own detail panel is open for a node also needs
     // to survive a reload/share, same as it would outside a flow.
-    if (state.nodeId) params.node = state.nodeId
+    if (state.nodeId) params.id = state.nodeId
     return `#${new URLSearchParams(params).toString()}`
   }
   if (state.nodeId) {
     if (state.expandedNodeId === defaultExpandedFor(state.nodeId)) {
       return `#${encodeURIComponent(state.nodeId)}`
     }
-    return `#${new URLSearchParams({ node: state.nodeId, expanded: state.expandedNodeId ?? '' }).toString()}`
+    return `#${new URLSearchParams({ id: state.nodeId, expanded: state.expandedNodeId ?? '' }).toString()}`
   }
   if (state.expandedNodeId) {
-    return `#${new URLSearchParams({ expanded: state.expandedNodeId }).toString()}`
+    return `#~${encodeURIComponent(state.expandedNodeId)}`
   }
   return ''
 }

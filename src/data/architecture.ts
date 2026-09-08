@@ -83,7 +83,7 @@ export const nodes: MapNode[] = [
   // Macro nodes
   // ---------------------------------------------------------------------
   {
-    id: 'client',
+    id: 'client-sdks',
     label: 'Client SDKs',
     category: 'client',
     summary: 'The client library applications use to talk to RavenDB: sessions, queries, bulk inserts, subscriptions. One of several officially supported client SDKs (.NET, Java, Node.js, Python, PHP, Ruby, Go).',
@@ -132,7 +132,7 @@ export const nodes: MapNode[] = [
     },
   },
   {
-    id: 'http',
+    id: 'http-routing-layer',
     label: 'HTTP / Routing Layer',
     category: 'server',
     summary: 'The web server front door: request routing and the handlers that turn HTTP calls into database operations.',
@@ -164,7 +164,7 @@ export const nodes: MapNode[] = [
     },
   },
   {
-    id: 'documents-core',
+    id: 'storages',
     label: 'Storages',
     category: 'storage',
     summary: 'The per-database storage subsystems: documents, attachments, revisions, counters, time series, conflicts, refresh and archival.',
@@ -219,7 +219,7 @@ export const nodes: MapNode[] = [
     childColumns: 1,
   },
   {
-    id: 'ai',
+    id: 'embeddings',
     label: 'Embeddings',
     category: 'indexing',
     summary: 'Turning text into embeddings: a dedicated ETL type that chunks changed documents and embeds them, with a cache to skip work already done.',
@@ -255,7 +255,7 @@ export const nodes: MapNode[] = [
     },
   },
   {
-    id: 'storage',
+    id: 'storage-engine-voron',
     label: 'Storage Engine (Voron)',
     category: 'storage',
     summary: 'The transactional, memory-mapped, page-based storage engine every other subsystem persists through.',
@@ -277,7 +277,7 @@ export const nodes: MapNode[] = [
     },
   },
   {
-    id: 'cluster',
+    id: 'clustering-rachis',
     label: 'Clustering (Rachis)',
     category: 'cluster',
     summary: 'Raft-based consensus between cluster nodes: leader election, log replication, and cluster-wide state (compare-exchange, cluster transactions).',
@@ -309,7 +309,7 @@ export const nodes: MapNode[] = [
     },
   },
   {
-    id: 'backup',
+    id: 'backup-restore',
     label: 'Backup & Restore',
     category: 'server',
     summary: 'Periodic full and incremental backups, snapshots, and restore - to local disk or cloud destinations.',
@@ -375,7 +375,7 @@ export const nodes: MapNode[] = [
     },
   },
   {
-    id: 'security',
+    id: 'security-https',
     label: 'Security & HTTPS',
     category: 'security',
     summary: 'Transport security and certificate-based authentication for client/server and server/server communication.',
@@ -396,7 +396,7 @@ export const nodes: MapNode[] = [
     },
   },
   {
-    id: 'studio',
+    id: 'studio-management-ui',
     label: 'Studio (Management UI)',
     category: 'studio',
     summary: "RavenDB's built-in web management interface, bundled with the server.",
@@ -412,7 +412,7 @@ export const nodes: MapNode[] = [
     },
   },
   {
-    id: 'core-tx-merger',
+    id: 'transaction-merger',
     label: 'TransactionMerger',
     category: 'server',
     summary:
@@ -432,7 +432,7 @@ export const nodes: MapNode[] = [
     },
   },
   {
-    id: 'core-queries',
+    id: 'queries-rql',
     label: 'Queries (RQL)',
     category: 'server',
     summary:
@@ -452,7 +452,7 @@ export const nodes: MapNode[] = [
     },
   },
   {
-    id: 'core-subscriptions',
+    id: 'data-subscriptions',
     label: 'Data Subscriptions',
     category: 'server',
     summary:
@@ -475,7 +475,7 @@ export const nodes: MapNode[] = [
   // Micro nodes: Storages
   // ---------------------------------------------------------------------
   {
-    id: 'core-document',
+    id: 'document',
     label: 'Document',
     category: 'storage',
     summary: 'The document read/write core: get, put, delete by id, and the change-vector bookkeeping every write goes through.',
@@ -493,10 +493,10 @@ export const nodes: MapNode[] = [
       startLine: 51,
       expectSymbol: 'class DocumentsStorage',
     },
-    parentId: 'documents-core',
+    parentId: 'storages',
   },
   {
-    id: 'core-attachments',
+    id: 'attachments',
     label: 'Attachments',
     category: 'storage',
     summary: 'Binary blobs attached to documents, stored as streams. They include the offloading/loading mechanism for the "remote attachment".',
@@ -519,10 +519,10 @@ export const nodes: MapNode[] = [
       startLine: 52,
       expectSymbol: 'class AttachmentsStorage',
     },
-    parentId: 'documents-core',
+    parentId: 'storages',
   },
   {
-    id: 'core-revisions',
+    id: 'revisions',
     label: 'Revisions',
     category: 'storage',
     summary:
@@ -539,10 +539,10 @@ export const nodes: MapNode[] = [
       startLine: 45,
       expectSymbol: 'class RevisionsStorage',
     },
-    parentId: 'documents-core',
+    parentId: 'storages',
   },
   {
-    id: 'core-counters',
+    id: 'counters',
     label: 'Counters',
     category: 'storage',
     summary:
@@ -559,10 +559,10 @@ export const nodes: MapNode[] = [
       startLine: 32,
       expectSymbol: 'class CountersStorage',
     },
-    parentId: 'documents-core',
+    parentId: 'storages',
   },
   {
-    id: 'core-timeseries',
+    id: 'time-series',
     label: 'Time Series',
     category: 'storage',
     summary:
@@ -579,10 +579,10 @@ export const nodes: MapNode[] = [
       startLine: 41,
       expectSymbol: 'class TimeSeriesStorage',
     },
-    parentId: 'documents-core',
+    parentId: 'storages',
   },
   {
-    id: 'core-conflicts',
+    id: 'conflicts',
     label: 'Conflicts',
     category: 'storage',
     summary: 'Persists the competing document versions RavenDB keeps on disk when two nodes changed the same document concurrently and no automatic resolution has run yet.',
@@ -600,10 +600,10 @@ export const nodes: MapNode[] = [
       startLine: 33,
       expectSymbol: 'class ConflictsStorage',
     },
-    parentId: 'documents-core',
+    parentId: 'storages',
   },
   {
-    id: 'core-refresh',
+    id: 'refresh',
     label: 'Refresh',
     category: 'storage',
     summary: 'Re-writes a document once its @refresh metadata time has passed, bumping its change vector and removing the refresh date, without changing its data.',
@@ -621,10 +621,10 @@ export const nodes: MapNode[] = [
       startLine: 15,
       expectSymbol: 'class RefreshStorage',
     },
-    parentId: 'documents-core',
+    parentId: 'storages',
   },
   {
-    id: 'core-archival',
+    id: 'archival',
     label: 'Archival',
     category: 'storage',
     summary: 'Marks documents past their scheduled `@archive-at` time as archived, so other subsystems, like indexing, can skip them.',
@@ -643,14 +643,14 @@ export const nodes: MapNode[] = [
       startLine: 13,
       expectSymbol: 'class DataArchivalStorage',
     },
-    parentId: 'documents-core',
+    parentId: 'storages',
   },
 
   // ---------------------------------------------------------------------
   // Micro nodes: Storage Engine (Voron)
   // ---------------------------------------------------------------------
   {
-    id: 'storage-impl',
+    id: 'pager-journal',
     label: 'Pager & Journal',
     category: 'storage',
     summary:
@@ -668,10 +668,10 @@ export const nodes: MapNode[] = [
       startLine: 37,
       expectSymbol: 'class LowLevelTransaction',
     },
-    parentId: 'storage',
+    parentId: 'storage-engine-voron',
   },
   {
-    id: 'storage-data',
+    id: 'data-structures',
     label: 'Data structures',
     category: 'storage',
     summary:
@@ -688,10 +688,10 @@ export const nodes: MapNode[] = [
       startLine: 24,
       expectSymbol: 'class Tree',
     },
-    parentId: 'storage',
+    parentId: 'storage-engine-voron',
   },
   {
-    id: 'storage-schema',
+    id: 'schema',
     label: 'Schema',
     category: 'storage',
     summary:
@@ -704,10 +704,10 @@ export const nodes: MapNode[] = [
       startLine: 7,
       expectSymbol: 'class VoronSchemaUpdater',
     },
-    parentId: 'storage',
+    parentId: 'storage-engine-voron',
   },
   {
-    id: 'storage-page',
+    id: 'page',
     label: 'Page',
     category: 'storage',
     summary:
@@ -717,10 +717,10 @@ export const nodes: MapNode[] = [
       source: [{ name: 'src/Voron/Page.cs', url: githubBlobUrl('src/Voron/Page.cs') }],
     },
     codeRef: { file: 'src/Voron/Page.cs', startLine: 8, expectSymbol: 'struct Page' },
-    parentId: 'storage',
+    parentId: 'storage-engine-voron',
   },
   {
-    id: 'storage-slice',
+    id: 'slice',
     label: 'Slice',
     category: 'storage',
     summary:
@@ -729,14 +729,14 @@ export const nodes: MapNode[] = [
       source: [{ name: 'src/Voron/Slice.cs', url: githubBlobUrl('src/Voron/Slice.cs') }],
     },
     codeRef: { file: 'src/Voron/Slice.cs', startLine: 14, expectSymbol: 'struct Slice' },
-    parentId: 'storage',
+    parentId: 'storage-engine-voron',
   },
 
   // ---------------------------------------------------------------------
   // Micro nodes: Sharding
   // ---------------------------------------------------------------------
   {
-    id: 'sharding-context',
+    id: 'sharded-database-context',
     label: 'ShardedDatabaseContext',
     category: 'server',
     summary:
@@ -757,7 +757,7 @@ export const nodes: MapNode[] = [
     parentId: 'sharding',
   },
   {
-    id: 'sharding-locator',
+    id: 'shard-locator',
     label: 'ShardLocator',
     category: 'server',
     summary:
@@ -778,7 +778,7 @@ export const nodes: MapNode[] = [
     parentId: 'sharding',
   },
   {
-    id: 'sharding-executors',
+    id: 'executors',
     label: 'Executors',
     category: 'server',
     summary:
@@ -799,7 +799,7 @@ export const nodes: MapNode[] = [
     parentId: 'sharding',
   },
   {
-    id: 'sharding-queries',
+    id: 'queries',
     label: 'Queries',
     category: 'server',
     summary:
@@ -822,7 +822,7 @@ export const nodes: MapNode[] = [
   // Micro nodes: Indexing
   // ---------------------------------------------------------------------
   {
-    id: 'indexing-index',
+    id: 'index-base-class',
     label: 'Index (base class)',
     category: 'indexing',
     summary:
@@ -843,7 +843,7 @@ export const nodes: MapNode[] = [
     parentId: 'indexing',
   },
   {
-    id: 'indexing-auto',
+    id: 'auto-indexes',
     label: 'Auto indexes',
     category: 'indexing',
     summary:
@@ -863,7 +863,7 @@ export const nodes: MapNode[] = [
     parentId: 'indexing',
   },
   {
-    id: 'indexing-static',
+    id: 'static-indexes',
     label: 'Static indexes',
     category: 'indexing',
     summary:
@@ -883,7 +883,7 @@ export const nodes: MapNode[] = [
     parentId: 'indexing',
   },
   {
-    id: 'indexing-mapreduce',
+    id: 'map-reduce',
     label: 'Map-Reduce',
     category: 'indexing',
     summary:
@@ -903,7 +903,7 @@ export const nodes: MapNode[] = [
     parentId: 'indexing',
   },
   {
-    id: 'indexing-workers',
+    id: 'workers',
     label: 'Workers',
     category: 'indexing',
     summary:
@@ -923,7 +923,7 @@ export const nodes: MapNode[] = [
     parentId: 'indexing',
   },
   {
-    id: 'indexing-persistence',
+    id: 'persistence',
     label: 'Persistence',
     category: 'indexing',
     summary:
@@ -947,7 +947,7 @@ export const nodes: MapNode[] = [
   // Micro nodes: Search engines
   // ---------------------------------------------------------------------
   {
-    id: 'search-engines-corax',
+    id: 'corax-vector-search',
     label: 'Corax & Vector Search',
     category: 'indexing',
     summary:
@@ -977,7 +977,7 @@ export const nodes: MapNode[] = [
     parentId: 'search-engines',
   },
   {
-    id: 'search-engines-lucene',
+    id: 'lucene',
     label: 'Lucene',
     category: 'indexing',
     summary:
@@ -1005,7 +1005,7 @@ export const nodes: MapNode[] = [
   // Micro nodes: Clustering (Rachis)
   // ---------------------------------------------------------------------
   {
-    id: 'cluster-leader',
+    id: 'leader',
     label: 'Leader',
     category: 'cluster',
     summary:
@@ -1023,10 +1023,10 @@ export const nodes: MapNode[] = [
       startLine: 34,
       expectSymbol: 'class Leader',
     },
-    parentId: 'cluster',
+    parentId: 'clustering-rachis',
   },
   {
-    id: 'cluster-follower',
+    id: 'follower',
     label: 'Follower',
     category: 'cluster',
     summary:
@@ -1043,10 +1043,10 @@ export const nodes: MapNode[] = [
       startLine: 21,
       expectSymbol: 'class Follower',
     },
-    parentId: 'cluster',
+    parentId: 'clustering-rachis',
   },
   {
-    id: 'cluster-candidate',
+    id: 'candidate-elector',
     label: 'Candidate / Elector',
     category: 'cluster',
     summary:
@@ -1063,10 +1063,10 @@ export const nodes: MapNode[] = [
       startLine: 17,
       expectSymbol: 'class Candidate',
     },
-    parentId: 'cluster',
+    parentId: 'clustering-rachis',
   },
   {
-    id: 'cluster-consensus',
+    id: 'rachis-consensus',
     label: 'RachisConsensus',
     category: 'cluster',
     summary:
@@ -1084,10 +1084,10 @@ export const nodes: MapNode[] = [
       startLine: 137,
       expectSymbol: 'class RachisConsensus',
     },
-    parentId: 'cluster',
+    parentId: 'clustering-rachis',
   },
   {
-    id: 'cluster-commands',
+    id: 'commands',
     label: 'Commands',
     category: 'cluster',
     summary:
@@ -1105,10 +1105,10 @@ export const nodes: MapNode[] = [
       startLine: 8,
       expectSymbol: 'class CastVoteInTermCommand',
     },
-    parentId: 'cluster',
+    parentId: 'clustering-rachis',
   },
   {
-    id: 'cluster-network',
+    id: 'wire-protocol',
     label: 'Wire Protocol',
     category: 'cluster',
     summary:
@@ -1121,7 +1121,7 @@ export const nodes: MapNode[] = [
       startLine: 5,
       expectSymbol: 'class AppendEntries',
     },
-    parentId: 'cluster',
+    parentId: 'clustering-rachis',
   },
 
   // ---------------------------------------------------------------------
@@ -1149,7 +1149,7 @@ export const nodes: MapNode[] = [
     parentId: 'replication',
   },
   {
-    id: 'replication-outgoing',
+    id: 'outgoing',
     label: 'Outgoing',
     category: 'cluster',
     summary:
@@ -1170,7 +1170,7 @@ export const nodes: MapNode[] = [
     parentId: 'replication',
   },
   {
-    id: 'replication-incoming',
+    id: 'incoming',
     label: 'Incoming',
     category: 'cluster',
     summary:
@@ -1190,7 +1190,7 @@ export const nodes: MapNode[] = [
     parentId: 'replication',
   },
   {
-    id: 'replication-changevector',
+    id: 'change-vectors',
     label: 'Change vectors',
     category: 'cluster',
     summary:
@@ -1210,7 +1210,7 @@ export const nodes: MapNode[] = [
     parentId: 'replication',
   },
   {
-    id: 'replication-conflicts',
+    id: 'conflict-manager',
     label: 'ConflictManager',
     category: 'cluster',
     summary:
@@ -1251,10 +1251,10 @@ export const nodes: MapNode[] = [
       startLine: 38,
       expectSymbol: 'class BackupTask',
     },
-    parentId: 'backup',
+    parentId: 'backup-restore',
   },
   {
-    id: 'backup-status',
+    id: 'backup-status-storage',
     label: 'BackupStatusStorage',
     category: 'server',
     summary:
@@ -1271,10 +1271,10 @@ export const nodes: MapNode[] = [
       startLine: 21,
       expectSymbol: 'class BackupStatusStorage',
     },
-    parentId: 'backup',
+    parentId: 'backup-restore',
   },
   {
-    id: 'backup-destinations',
+    id: 'destinations',
     label: 'Destinations',
     category: 'server',
     summary:
@@ -1292,10 +1292,10 @@ export const nodes: MapNode[] = [
       startLine: 29,
       expectSymbol: 'class BackupUploader',
     },
-    parentId: 'backup',
+    parentId: 'backup-restore',
   },
   {
-    id: 'backup-restore',
+    id: 'restore',
     label: 'Restore',
     category: 'server',
     summary:
@@ -1312,14 +1312,14 @@ export const nodes: MapNode[] = [
       startLine: 8,
       expectSymbol: 'class RestoreBackupTask',
     },
-    parentId: 'backup',
+    parentId: 'backup-restore',
   },
 
   // ---------------------------------------------------------------------
   // Micro nodes: AI Integration
   // ---------------------------------------------------------------------
   {
-    id: 'ai-embeddings',
+    id: 'embeddings-generation',
     label: 'Embeddings generation',
     category: 'indexing',
     summary:
@@ -1341,10 +1341,10 @@ export const nodes: MapNode[] = [
       startLine: 37,
       expectSymbol: 'class EmbeddingsGenerator',
     },
-    parentId: 'ai',
+    parentId: 'embeddings',
   },
   {
-    id: 'ai-chunker',
+    id: 'text-chunker',
     label: 'TextChunker',
     category: 'indexing',
     summary:
@@ -1358,10 +1358,10 @@ export const nodes: MapNode[] = [
       startLine: 13,
       expectSymbol: 'class TextChunker',
     },
-    parentId: 'ai',
+    parentId: 'embeddings',
   },
   {
-    id: 'ai-chat',
+    id: 'chat-completion-client',
     label: 'ChatCompletionClient',
     category: 'indexing',
     summary:
@@ -1379,7 +1379,7 @@ export const nodes: MapNode[] = [
       startLine: 41,
       expectSymbol: 'class ChatCompletionClient',
     },
-    parentId: 'ai',
+    parentId: 'embeddings',
   },
   {
     id: 'ai-assistant',
@@ -1396,10 +1396,10 @@ export const nodes: MapNode[] = [
       startLine: 11,
       expectSymbol: 'class AiAssistantHandler',
     },
-    parentId: 'ai',
+    parentId: 'embeddings',
   },
   {
-    id: 'ai-settings',
+    id: 'connection-strings',
     label: 'Connection Strings',
     category: 'indexing',
     summary:
@@ -1417,7 +1417,7 @@ export const nodes: MapNode[] = [
       startLine: 12,
       expectSymbol: 'class AbstractChatCompletionClientSettings',
     },
-    parentId: 'ai',
+    parentId: 'embeddings',
   },
 
   // ---------------------------------------------------------------------
@@ -1466,7 +1466,7 @@ export const nodes: MapNode[] = [
     parentId: 'etl',
   },
   {
-    id: 'queue-sink',
+    id: 'queue-sink-inbound',
     label: 'Queue Sink (inbound)',
     category: 'integration',
     summary:
@@ -1487,7 +1487,7 @@ export const nodes: MapNode[] = [
     parentId: 'sinks',
   },
   {
-    id: 'smuggler',
+    id: 'smuggler-import-export',
     label: 'Smuggler (import / export)',
     category: 'integration',
     summary:
@@ -1524,7 +1524,7 @@ export const nodes: MapNode[] = [
     parentId: 'integrations',
   },
   {
-    id: 'postgres-protocol',
+    id: 'postgresql-protocol',
     label: 'PostgreSQL protocol',
     category: 'integration',
     summary:
@@ -1568,31 +1568,31 @@ export const nodes: MapNode[] = [
 export const edges: MapEdge[] = [
   {
     id: 'client-security',
-    source: 'client',
-    target: 'security',
+    source: 'client-sdks',
+    target: 'security-https',
     label: 'HTTPS',
     description:
       "The client authenticates every connection with an X.509 client certificate over TLS, rather than a username and password. That handshake completes before the request ever reaches the routing layer.",
   },
   {
     id: 'studio-security',
-    source: 'studio',
-    target: 'security',
+    source: 'studio-management-ui',
+    target: 'security-https',
     label: 'HTTPS',
     description:
       "Studio is just another HTTP client of the same server, so its requests go through the identical certificate-based TLS handshake as any SDK client before they're routed anywhere.",
   },
   {
     id: 'security-http',
-    source: 'security',
-    target: 'http',
+    source: 'security-https',
+    target: 'http-routing-layer',
     label: 'authenticates, routes to',
     description:
       "HttpsConnectionMiddleware validates the connecting certificate as the TLS connection is established, and the resulting authorization level is attached to the request before routing hands it to a handler - that level is what gates access to each one.",
   },
   {
     id: 'http-sharding',
-    source: 'http',
+    source: 'http-routing-layer',
     target: 'sharding',
     label: 'sharded databases',
     description:
@@ -1601,30 +1601,30 @@ export const edges: MapEdge[] = [
   {
     id: 'sharding-documents',
     source: 'sharding',
-    target: 'documents-core',
+    target: 'storages',
     label: 'per-shard requests',
     description:
       'ShardLocator resolves which shard (bucket) an operation belongs to, and the Executors fan it out to the Storages instance running on that shard, merging the per-shard results back into one answer.',
   },
   {
     id: 'http-documents',
-    source: 'http',
-    target: 'documents-core',
+    source: 'http-routing-layer',
+    target: 'storages',
     label: 'routes to',
     description:
       "A non-sharded database request is routed straight to that database's Storages subsystems - documents, attachments, revisions, and the rest - once Security has authorized it.",
   },
   {
     id: 'http-cluster',
-    source: 'http',
-    target: 'cluster',
+    source: 'http-routing-layer',
+    target: 'clustering-rachis',
     label: 'server-to-server',
     description:
       'Server-to-server traffic - what nodes send each other to run Raft - arrives over the same HTTP layer as client requests, just routed to Rachis\'s own endpoints instead of a database handler.',
   },
   {
     id: 'documents-indexing',
-    source: 'documents-core',
+    source: 'storages',
     target: 'indexing',
     label: 'feeds',
     description:
@@ -1640,15 +1640,15 @@ export const edges: MapEdge[] = [
   },
   {
     id: 'documents-ai',
-    source: 'documents-core',
-    target: 'ai',
+    source: 'storages',
+    target: 'embeddings',
     label: 'embeddings tasks',
     description:
       'EmbeddingsGenerationTask is itself a kind of ETL process, so it tails the same document change feed an index does rather than hooking synchronously into the write path. It hands each batch to AiWorker to chunk and embed.',
   },
   {
     id: 'ai-indexing',
-    source: 'ai',
+    source: 'embeddings',
     target: 'indexing',
     label: 'vector fields',
     description:
@@ -1656,8 +1656,8 @@ export const edges: MapEdge[] = [
   },
   {
     id: 'documents-storage',
-    source: 'documents-core',
-    target: 'storage',
+    source: 'storages',
+    target: 'storage-engine-voron',
     label: 'persists via',
     description:
       'Every Storages subsystem - documents, attachments, revisions and the rest - is built directly on a Voron storage environment; nothing on this side of the diagram reaches disk any other way.',
@@ -1665,21 +1665,21 @@ export const edges: MapEdge[] = [
   {
     id: 'engines-storage',
     source: 'search-engines',
-    target: 'storage',
+    target: 'storage-engine-voron',
     label: 'persists via',
     description:
       "Corax persists its inverted index - and the HNSW graph behind vector search - through Voron directly; Lucene does the same via LuceneVoronDirectory. Both engines end up on the same storage engine underneath.",
   },
   {
     id: 'cluster-storage',
-    source: 'cluster',
-    target: 'storage',
+    source: 'clustering-rachis',
+    target: 'storage-engine-voron',
     label: 'ACID Raft log',
     description: "Rachis keeps its own Raft log ACID by storing it in Voron - the same durability guarantee every other subsystem on this map gets from the same engine.",
   },
   {
     id: 'documents-etl',
-    source: 'documents-core',
+    source: 'storages',
     target: 'etl',
     label: 'change feed',
     description:
@@ -1688,14 +1688,14 @@ export const edges: MapEdge[] = [
   {
     id: 'sinks-documents',
     source: 'sinks',
-    target: 'documents-core',
+    target: 'storages',
     label: 'writes documents',
     description:
       "A Sink (`QueueSink` or `CdcSink`) runs the same shape as ETL in reverse: it consumes an external stream - a message queue or a change-data-capture feed - and writes the resulting documents into Storages like any other write.",
   },
   {
     id: 'documents-integrations',
-    source: 'documents-core',
+    source: 'storages',
     target: 'integrations',
     label: 'bulk ops & migration',
     description:
@@ -1703,7 +1703,7 @@ export const edges: MapEdge[] = [
   },
   {
     id: 'documents-replication',
-    source: 'documents-core',
+    source: 'storages',
     target: 'replication',
     label: 'change feed',
     description:
@@ -1711,61 +1711,61 @@ export const edges: MapEdge[] = [
   },
   {
     id: 'documents-backup',
-    source: 'documents-core',
-    target: 'backup',
+    source: 'storages',
+    target: 'backup-restore',
     label: 'ongoing task',
     description:
       "A scheduled BackupTask reads a database's Storages state on the responsible node and writes a full or incremental backup - a logical export or a Voron snapshot - to the configured destination.",
   },
   {
     id: 'documents-cluster',
-    source: 'documents-core',
-    target: 'cluster',
+    source: 'storages',
+    target: 'clustering-rachis',
     label: 'cluster-wide ops',
     description:
       "An operation that touches cluster-wide state - compare-exchange, a cluster transaction - is raised as a command to Rachis instead of being handled as a local write, and only commits once a majority of nodes acknowledge it.",
   },
   {
     id: 'documents-tx-merger',
-    source: 'documents-core',
-    target: 'core-tx-merger',
+    source: 'storages',
+    target: 'transaction-merger',
     label: 'batches writes',
     description:
       "Storages hands a validated write to TransactionMerger rather than committing it directly - it's queued there and merged with other pending operations into one shared Voron transaction.",
   },
   {
     id: 'tx-merger-storage',
-    source: 'core-tx-merger',
-    target: 'storage',
+    source: 'transaction-merger',
+    target: 'storage-engine-voron',
     label: 'commits via',
     description:
       "TransactionMerger's single dedicated thread commits its batched queue as one Voron write transaction - what lets many concurrent writers merge into a transaction without blocking each other directly on Voron's single-writer model.",
   },
   {
     id: 'http-queries',
-    source: 'http',
-    target: 'core-queries',
+    source: 'http-routing-layer',
+    target: 'queries-rql',
     label: 'routes to',
     description: 'An RQL query request is routed to AbstractQueryRunner, which parses it and matches it against a static or auto-index.',
   },
   {
     id: 'queries-documents',
-    source: 'core-queries',
-    target: 'documents-core',
+    source: 'queries-rql',
+    target: 'storages',
     label: 'reads via',
     description: "Once a query is parsed, AbstractQueryRunner hands it to IndexStore - part of Storages - to run against the matched index and read back the results.",
   },
   {
     id: 'documents-subscriptions',
-    source: 'documents-core',
-    target: 'core-subscriptions',
+    source: 'storages',
+    target: 'data-subscriptions',
     label: 'change feed',
     description:
       "SubscriptionStorage pushes matching documents to a worker as they change on the same internal feed, resuming from the change vector its last acknowledged batch ended on rather than replaying the whole collection.",
   },
   {
     id: 'http-ai-agents',
-    source: 'http',
+    source: 'http-routing-layer',
     target: 'ai-agents',
     label: 'routes to',
     description:
@@ -1774,7 +1774,7 @@ export const edges: MapEdge[] = [
   {
     id: 'ai-agents-documents',
     source: 'ai-agents',
-    target: 'documents-core',
+    target: 'storages',
     label: 'reads/writes documents',
     description:
       "A conversation and its messages are persisted as an ordinary document (ConversationDocument, written through PutConversationCommand), and an agent's tools read and write whatever documents they're configured to touch - both go through Storages like any other write.",
